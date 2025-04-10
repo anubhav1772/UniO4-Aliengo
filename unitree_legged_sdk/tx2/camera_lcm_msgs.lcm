@@ -1,0 +1,6 @@
+package camera_lcm_msgs;
+
+struct PositionGravityState {
+    float gravity[3]; 
+    float data[18];
+}

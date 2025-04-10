@@ -1,0 +1,1 @@
+/usr/bin/c++ -O3 -fPIC -rdynamic CMakeFiles/test.dir/test.cpp.o -o test   -L/home/anubhav1772/unitree_legged_sdk/lib/cpp/amd64  -Wl,-rpath,/home/anubhav1772/unitree_legged_sdk/lib/cpp/amd64 -pthread -lunitree_legged_sdk -llcm

@@ -1,0 +1,1 @@
+/usr/bin/c++ -O3 -fPIC -rdynamic CMakeFiles/example_joystick_aliengo.dir/examples/example_joystick_aliengo_sport.cpp.o -o example_joystick_aliengo   -L/home/anubhav1772/unitree_legged_sdk/lib/cpp/amd64  -Wl,-rpath,/home/anubhav1772/unitree_legged_sdk/lib/cpp/amd64 -pthread -lunitree_legged_sdk -llcm

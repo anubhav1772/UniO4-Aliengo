@@ -1,0 +1,1 @@
+/usr/bin/c++ -O3 -fPIC -rdynamic CMakeFiles/example_recovery_aliengo.dir/examples/example_recovery_aliengo_sport.cpp.o -o example_recovery_aliengo   -L/home/anubhav1772/unitree_legged_sdk/lib/cpp/amd64  -Wl,-rpath,/home/anubhav1772/unitree_legged_sdk/lib/cpp/amd64 -pthread -lunitree_legged_sdk -llcm
