@@ -181,10 +181,6 @@ class RCControllerProfileAccel(RCControllerProfile):
     def get_buttons(self):
         return self.state_estimator.get_buttons()
 
-
-
-
-
 class KeyboardProfile(CommandProfile):
     # for control via keyboard inputs to isaac gym visualizer
     def __init__(self, dt, isaac_env, x_scale=1.0, y_scale=1.0, yaw_scale=1.0):
