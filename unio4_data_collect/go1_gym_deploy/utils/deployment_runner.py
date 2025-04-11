@@ -65,13 +65,16 @@ class DeploymentRunner:
     def add_command_profile(self, command_profile):
         self.command_profile = command_profile
 
-
     def calibrate(self, wait=True, low=False):
         # first, if the robot is not in nominal pose, move slowly to the nominal pose
+        # print("agents_keys => "+str(self.agents.keys())) 
+        # agents_keys => dict_keys(['hardware_closed_loop'])
         for agent_name in self.agents.keys():
             if hasattr(self.agents[agent_name], "get_obs"):
                 agent = self.agents[agent_name]
-                agent.get_obs()
+                # get_obs() fetches the current environment observations 
+                # and stores in agent obs' variables (e.g., in agent.gravity_vector, agent.dof_vel, agent.dof_pos, etc.)
+                agent.get_obs()                 
                 joint_pos = agent.dof_pos
                 if low:
                     final_goal = np.array([0., 0.3, -0.7,
@@ -85,7 +88,8 @@ class DeploymentRunner:
                 print(f"About to calibrate; the robot will stand [Press R2 to calibrate]")
                 
                 if(not wait):
-                    print("Dog shuaidao!!!!")
+                    #print("Dog shuaidao!!!!")
+                    print("The dog has fallen")
                     self.hdf5_recorder.save_file()
                 else:
                     print("Normally record")
@@ -100,6 +104,11 @@ class DeploymentRunner:
                 target_sequence = []
                 target = joint_pos - nominal_joint_pos
                 while np.max(np.abs(target - final_goal)) > 0.01:
+                    # clip range (-0.05, 0.05) is basically setting the maximum allowed step size 
+                    # in either direction (positive or negative). \
+                    # Limits the values to stay within the boundaries
+                    # np.clip(values, -0.05, 0.05) => values greater than 0.05 becomes 0.05, 
+                    # while lower than -0.05 becomes -0.05. Values in between [-0.05, 0.05] remain unchanged
                     target -= np.clip((target - final_goal), -0.05, 0.05)
                     target_sequence += [copy.deepcopy(target)]
                 for target in target_sequence:
@@ -111,7 +120,13 @@ class DeploymentRunner:
                         hip_reduction = agent.cfg.control.hip_scale_reduction
                         action_scale = agent.cfg.control.action_scale
 
-                    next_target[[0, 3, 6, 9]] /= hip_reduction
+                    # >>> x = np.array([1, 2, 3, 4, 5, 6, 7, 9], 'float')
+                    # >>> x
+                    #     array([1., 2., 3., 4., 5., 6., 7., 9.])
+                    # >>> x[[0, 3, 5]]/=2
+                    # >>> x
+                    #     array([0.5, 2. , 3. , 2. , 5. , 3. , 7. , 9. ])
+                    next_target[[0, 3, 6, 9]] /= hip_reduction # here, 0, 3, 6, 9 array indices are for hip
                     next_target = next_target / action_scale
                     cal_action[:, 0:12] = next_target
                     agent.step(torch.from_numpy(cal_action))
@@ -139,11 +154,15 @@ class DeploymentRunner:
         assert self.command_profile is not None, "cannot deploy, runner has no command profile!"
 
         # TODO: add basic test for comms
-
+        #print(50*'^')
+        #print(self.control_agent_name)
+        #print(self.agents.keys())
         for agent_name in self.agents.keys():
             obs = self.agents[agent_name].reset()
+            #print("agent obs: "+str(obs))
             if agent_name == self.control_agent_name:
                 control_obs = obs
+        #print(50*'-')
 
         control_obs = self.calibrate(wait=True)
         obs_record = control_obs["obs"][0,:].detach().cpu().numpy().tolist()
