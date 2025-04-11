@@ -30,6 +30,7 @@ class HDF5_recorder:
         self.dones.append(done)
     def save_file(self):
         if((self.action_data==[]) or (self.states_data==[])):
+            print("Both action_data and states_data arrays are empty!!")
             return
         actions = np.array(self.action_data)
         states = np.array(self.states_data)
