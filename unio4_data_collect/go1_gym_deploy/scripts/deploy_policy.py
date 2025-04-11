@@ -20,10 +20,13 @@ def load_and_run_policy(label, experiment_name, args, max_vel=1.0, max_yaw_vel=1
     logdir = '/home/anubhav1772/Documents/unio4_data_collect/runs/gait-conditioned-agility/itmo/train/050612.037196'
     with open(logdir+"/parameters.pkl", 'rb') as file:
         pkl_cfg = pkl.load(file)
-        print(logdir+"/parameters.pkl")
-        print(pkl_cfg.keys())
+        #print(logdir+"/parameters.pkl")
+        #print(pkl_cfg.keys())
         cfg = pkl_cfg["Cfg"]
-        print(cfg.keys())
+        # print(50*'*')
+        # print(cfg)
+        # print(50*'@')
+        #print(cfg.keys())
 
 
     se = StateEstimator(lc)
@@ -102,6 +105,15 @@ def load_policy_sim(logdir):
     print('policy loaded from: {}'.format(str(load_dir)))
     weights = torch.load(logdir + '/checkpoints/ac_weights_last.pt')
 
+    # if 'model_state_dict' in weights:
+    #     state_dict = weights['model_state_dict']
+    # else:
+    #     state_dict = weights  
+
+    # # Print shapes of each parameter
+    # for name, param in state_dict.items():
+    #     print(f"{name}: {param.shape}")
+
     actor_critic.load_state_dict(state_dict=weights)
     actor_critic.to('cuda:0')
     def sample_policy(obs, info):
@@ -119,5 +131,5 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     label = "gait-conditioned-agility/1000wan_ft/train"
-    experiment_name = "example_experiment"
+    experiment_name = "aliengo_dataset"
     load_and_run_policy(label, experiment_name=experiment_name, args=args, max_vel=0.5, max_yaw_vel=0.5)
