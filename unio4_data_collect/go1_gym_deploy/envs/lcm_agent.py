@@ -32,6 +32,7 @@ def class_to_dict(obj) -> dict:
 
 class LCMAgent():
     def __init__(self, cfg, se, command_profile):
+        print("Initializing LCMAgent...")
         if not isinstance(cfg, dict):
             cfg = class_to_dict(cfg)
         # self.T265Pose = RealSensePose()
@@ -39,7 +40,23 @@ class LCMAgent():
         self.se = se
         self.command_profile = command_profile
 
+        # cfg["control"]["decimation"] tells how many simulation steps happen before 
+        # one control action is applied. 
+        # For instance, if this is 4, it means the controller acts once every 4 sim steps.
+        # cfg["sim"]["dt"] is the simulation timestep — how often the simulation itself updates (in seconds). 
+        # For example, it might be 0.005 (i.e. 5 ms per step)
+        # self.dt: The control timestep, i.e., how often the policy/controller runs.
+        # Eg. self.dt = 4 * 0.005 = 0.02 seconds = 20 ms
+        # This means the simulation runs every 5 ms. But our controller acts every 20 ms
+        # In other words, if our simulator steps at 200 Hz (dt = 0.005s), 
+        # but our control policy runs at 50 Hz, then we apply control every 4 sim steps. 
+        # So, the below line controls how often our policy is applied inside the simulation.
         self.dt = self.cfg["control"]["decimation"] * self.cfg["sim"]["dt"]
+        print("control->decimation= "+str(self.cfg["control"]["decimation"]))
+        print("sim->dt= "+str(self.cfg["sim"]["dt"]))
+        print("dt= "+str(self.dt))
+        
+        
         self.timestep = 0
 
         self.num_obs = self.cfg["env"]["num_observations"]
@@ -244,7 +261,7 @@ class LCMAgent():
         self.actions = torch.clip(actions[0:1, :], -clip_actions, clip_actions)
         self.publish_action(self.actions, hard_reset=hard_reset)
         time.sleep(max(self.dt - (time.time() - self.time), 0))
-        if self.timestep % 100 == 0: print(f'frq: {1 / (time.time() - self.time)} Hz');
+        if self.timestep % 100 == 0: print(f'frq: {1 / (time.time() - self.time)} Hz')
         self.time = time.time()
         obs = self.get_obs()
 
