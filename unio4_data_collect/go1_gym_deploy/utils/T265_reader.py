@@ -6,7 +6,9 @@ import time
 class RealSensePose:
     def __init__(self):
         self.reset()
-    def reset(self, ):
+
+    def reset(self):
+        print("Resetting T265 Tracking Camera...")
         try:
             self.pipe = rs.pipeline()
             
@@ -14,9 +16,9 @@ class RealSensePose:
             cfg.enable_stream(rs.stream.pose)
             self.pipe.start(cfg)
             
-            print("T265 pipeline enabled")
+            print("T265 pipeline enabled!")
         except:
-            print("T265 start pipe fail, retry after 2 s")
+            print("T265 start pipe fail, retry after 2 s...")
             time.sleep(2.0)
             self.reset()
 
@@ -32,23 +34,24 @@ class RealSensePose:
         # roll (x-axis rotation)
         sinr_cosp = 2.0 * (q[3] * q[0] + q[1] * q[2])
         cosr_cosp = 1.0 - 2.0 * (q[0] * q[0] + q[1] * q[1])
-        roll = math.atan2(sinr_cosp, cosr_cosp);
+        roll = math.atan2(sinr_cosp, cosr_cosp)
 
         # pitch (y-axis rotation)
         sinp = 2.0 * (q[3] * q[1] - q[2] * q[0])
         if abs(sinp) >= 1:
             pitch = math.copysign(math.pi / 2, sinp) # use 90 degrees if out of range
         else:
-            pitch = math.asin(sinp);
+            pitch = math.asin(sinp)
 
         # yaw (z-axis rotation)
         siny_cosp = 2.0 * (q[3] * q[2] + q[0] * q[1])
         cosy_cosp = 1.0 - 2.0 * (q[1] * q[1] + q[2] * q[2])  
-        yaw = math.atan2(siny_cosp, cosy_cosp);
+        yaw = math.atan2(siny_cosp, cosy_cosp)
         
         return roll, pitch, yaw
 
     def getCurrentPoseData(self):
+        print("Getting current pose data from T265 camera!!")
         frames = self.pipe.wait_for_frames()
         pose_frame = frames.first_or_default(rs.stream.pose)
 
@@ -62,6 +65,7 @@ class RealSensePose:
             raise Exception("Cannot retrieve pose frame")
 
     def appendPoseData(self, data=None):
+        print("Reading and appending pose data from T265 tracking camera!!")
         try:
             time1 = time.time()
             frames = self.pipe.wait_for_frames()
@@ -87,6 +91,7 @@ class RealSensePose:
                     data.extend(pose_data_list)
                     # print('shape--------------------------', np.array(data).shape[0])
                     assert np.array(data).shape[0] == 76, 'pose_data_list: {}'.format(pose_data_list)
+                    print("Successfully read and appended pose data from T265 tracking camera!!")
                 return True
             else:
                 print("T265 frame is none!")
