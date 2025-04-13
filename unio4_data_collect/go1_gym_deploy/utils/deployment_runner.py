@@ -6,7 +6,7 @@ import numpy as np
 import torch
 
 from go1_gym_deploy.utils.logger import MultiLogger
-#from go1_gym_deploy.utils.T265_reader import RealSensePose
+from go1_gym_deploy.utils.T265_reader import RealSensePose
 from go1_gym_deploy.utils.HDF5_recorder import HDF5_recorder
 
 class DeploymentRunner:
@@ -42,7 +42,6 @@ class DeploymentRunner:
                 return
             except FileExistsError:
                 continue
-
 
     def add_open_loop_agent(self, agent, name):
         self.agents[name] = agent
@@ -165,6 +164,7 @@ class DeploymentRunner:
         #print(50*'-')
 
         control_obs = self.calibrate(wait=True)
+        print('printing control obs returned after calibration step: '+str(control_obs))
         obs_record = control_obs["obs"][0,:].detach().cpu().numpy().tolist()
         count = 0
         # now, run control loop
@@ -178,11 +178,14 @@ class DeploymentRunner:
                     obs_record = control_obs["obs"][0,:].detach().cpu().numpy().tolist()
                 print('obs_len: {}'.format(len(obs_record)))
                 time_before_append = time.time()
-                # if(not self.T265_reader.appendPoseData(obs_record)):
-                #     self.T265_reader.reset()
-                #     continue
+                # T265 Tracking Camera
+                # -------------------------------------
+                if(not self.T265_reader.appendPoseData(obs_record)):
+                    self.T265_reader.reset()
+                    continue
+                # -------------------------------------
                 time_after_append = time.time()
-                print("befor while not done delta time {}s".format(time_after_append-time_before_append))
+                print("before while not done delta time {}s".format(time_after_append-time_before_append))
 
                 while not done:
                     policy_info = {}
@@ -197,10 +200,12 @@ class DeploymentRunner:
                             next_obs_record = next_control_obs["obs"][0,:].detach().cpu().numpy().tolist()
                             #check t265 and cat into obs
                     time_before_append = time.time()
-
-                    # if(not self.T265_reader.appendPoseData(next_obs_record)):
-                    #     break
-
+                    
+                    # T265 Tracking Camera
+                    # -------------------------------------
+                    if(not self.T265_reader.appendPoseData(next_obs_record)):
+                        break
+                    # -------------------------------------
                     time_after_append = time.time()
                     
                     if(time_after_append-time_before_append>0.1):
