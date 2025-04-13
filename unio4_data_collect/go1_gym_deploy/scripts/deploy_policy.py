@@ -28,7 +28,6 @@ def load_and_run_policy(label, experiment_name, args, max_vel=1.0, max_yaw_vel=1
         # print(50*'@')
         #print(cfg.keys())
 
-
     se = StateEstimator(lc)
 
     control_dt = 0.02
@@ -128,8 +127,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser("Hyperparameters Setting for PPO-continuous")
     parser.add_argument("--deploy_policy", type=str, default='sim', help="choice: sim/offline/online trained policy")
 
-
     args = parser.parse_args()
-    label = "gait-conditioned-agility/1000wan_ft/train"
-    experiment_name = "aliengo_dataset"
+    # label = "gait-conditioned-agility/1000wan_ft/train"
+    label = "gait-conditioned-agility/itmo/train"
+    experiment_name = "aliengo_offline_dataset"
     load_and_run_policy(label, experiment_name=experiment_name, args=args, max_vel=0.5, max_yaw_vel=0.5)
