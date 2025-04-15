@@ -1,46 +1,25 @@
-# v3.8.4
-The aliengo_sdk is mainly used for communication between PC and aliengo control board.
-It also can be used in other PCs with UDP.
+## Read data from the Intel RealSense T265 tracking camera mounted on the AlienGo robot 
+## and publish it using the LCM (Lightweight Communications and Marshalling) library. 
 
-### Notice
-support robot: Aliengo
+Intel® RealSense™ SDK 2.0 (for T265 Tracking Camera): https://github.com/IntelRealSense/librealsense/tree/v2.50.0?tab=readme-ov-file
 
-not support robot: Laikago, Aliengo, A1. (Check release [v3.3.1](https://github.com/unitreerobotics/unitree_legged_sdk/releases/tag/v3.3.1) for support)
-
-### Sport Mode
+### Terminal 1 
 ```bash
-Legged_sport    >= v1.0.20
-firmware H0.1.7 >= v0.1.35
-         H0.1.9 >= v0.1.35
-
-
-
-### Dependencies
-* [Boost](http://www.boost.org) (version 1.5.4 or higher)
-* [CMake](http://www.cmake.org) (version 2.8.3 or higher)
-* [LCM](https://lcm-proj.github.io) (version 1.4.0 or higher)
-```bash
-cd lcm-x.x.x
-mkdir build
-cd build
-cmake ../
-make
-sudo make install
+# Remotely log in to Aliengo TX2 via SSH
+ssh unitree@192.168.123.12
+export LCM_DEFAULT_URL=udpm://239.255.76.67:7667?ttl=1
+# ip link show
+sudo ifconfig eth0 multicast
+sudo route add -net 224.0.0.0 netmask 240.0.0.0 dev eth0
+./camera_lcm_msgs
 ```
 
-### Build
+### Terminal 2
 ```bash
-mkdir build
-cd build
-cmake ../
-make
+export LCM_DEFAULT_URL=udpm://239.255.76.67:7667?ttl=1
+# modify enp3s0f1 with your own value (ip link show)
+sudo ifconfig enp3s0f1 multicast
+sudo route add -net 224.0.0.0 netmask 240.0.0.0 dev enp3s0f1
+cd unitree_legged_sdk/build
+sudo ./lcm_position
 ```
-
-### Run
-
-#### Cpp
-Run examples with 'sudo' for memory locking.
-
-#### Python
-##### arm
-change `sys.path.append('../lib/python/amd64')` to `sys.path.append('../lib/python/arm64')`
