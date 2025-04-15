@@ -1,0 +1,5 @@
+Aliengo-TX2-spot-mode: v3.0.0(new Aliengo SDK)
+
+## Only update for Aliengo(TX2 platform) in spot mode.
+##				Date: 2021-03-19 18:18:00
+##			      Author: Ian

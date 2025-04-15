@@ -1,0 +1,1 @@
+/usr/bin/c++ -O3 -fPIC -rdynamic CMakeFiles/camera_lcm_msgs.dir/camera_lcm_msgs.cpp.o -o camera_lcm_msgs  -Wl,-rpath,/usr/local/lib -pthread -llcm /usr/local/lib/librealsense2.so.2.50.0
