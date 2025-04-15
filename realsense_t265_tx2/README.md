@@ -1,5 +1,8 @@
-## Read data from the Intel RealSense T265 tracking camera mounted on the AlienGo robot 
-## and publish it using the LCM (Lightweight Communications and Marshalling) library. 
+<!--Read data from the Intel RealSense T265 tracking camera mounted on the AlienGo robot 
+    and publish it using the LCM (Lightweight Communications and Marshalling) library. -->
+
+## Intel RealSense T265 Tracking Camera data broadcast via LCM
+The RealSense T265 sensor is employed to measure the robot’s speed along the x, y, and yaw axes for reward calculation.
 
 Intel® RealSense™ SDK 2.0 (for T265 Tracking Camera): https://github.com/IntelRealSense/librealsense/tree/v2.50.0?tab=readme-ov-file
 
