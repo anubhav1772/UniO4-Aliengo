@@ -6,6 +6,28 @@ The RealSense T265 sensor is employed to measure the robot’s speed along the x
 
 Intel® RealSense™ SDK 2.0 (for T265 Tracking Camera): https://github.com/IntelRealSense/librealsense/tree/v2.50.0?tab=readme-ov-file
 
+Dependencies:
+```bash
+sudo apt install git cmake libusb-1.0-0-dev pkg-config libgtk-3-dev \
+libglfw3-dev libssl-dev libudev-dev
+```
+
+Installations and setups:
+```bash
+# Clone the realsense repository
+git clone --branch v2.50.0 https://github.com/IntelRealSense/librealsense.git
+cd librealsense
+mkdir build && cd build
+cmake .. -DFORCE_LIBUVC=true -DCMAKE_BUILD_TYPE=Release
+make -j$(nproc)
+sudo make install
+
+cd ..
+sudo cp config/99-realsense-libusb.rules /etc/udev/rules.d/
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+```
+
 ### Terminal 1 
 ```bash
 # Remotely log in to Aliengo TX2 via SSH
