@@ -258,7 +258,7 @@ void Custom::RobotControl()
     memcpy(&_keyData, &state.wirelessRemote[0], 40);
     if (_keyData.btn.components.R1 && !rc_command.right_upper_switch)
     {
-        // std::cout<<"Pressed"<<std::endl;
+        std::cout<<"Pressed"<<std::endl;
         HDF5Recorder.new_episode();
         // right_upper_switch_pressed = false;
     }
@@ -359,14 +359,13 @@ void Custom::RobotControl()
 
     //_simpleLCM.subscribe("POSITION_GRAVITY_STATE", &PositionGravityStateHandler::handleMessage, &handler);
 
-    //----
-    // for (int i = 0; i < 18; i++) {
-    //     states_step.push_back(steps[i]);
-    // }
+    for (int i = 0; i < 18; i++) {
+        states_step.push_back(steps[i]);
+    }
 
-    // record_state(gravity[0]);
-    // record_state(gravity[1]);
-    // record_state(gravity[2]);
+    record_state(gravity[0]);
+    record_state(gravity[1]);
+    record_state(gravity[2]);
 
     _simpleLCM.publish("state_estimator_data", &body_state_simple);
     _simpleLCM.publish("leg_control_data", &joint_state_simple);
