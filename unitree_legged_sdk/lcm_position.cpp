@@ -38,8 +38,10 @@ constexpr char TARGET_IP[] = "192.168.123.10";   // target IP address
 const int LOW_CMD_LENGTH = 610;
 const int LOW_STATE_LENGTH = 771;
 
-const float PosStopF = 2.146e+9f;
-const float VelStopF = 16000.0f;
+// const float PosStopF = 2.146e+9f;
+// const float VelStopF = 16000.0f;
+
+const float MAX_TORQUE = 15.0f;
 
 HDF5Recorder HDF5Recorder;
 //RealSensePose T265_reader;
@@ -359,13 +361,19 @@ void Custom::RobotControl()
 
     //_simpleLCM.subscribe("POSITION_GRAVITY_STATE", &PositionGravityStateHandler::handleMessage, &handler);
 
-    for (int i = 0; i < 18; i++) {
-        states_step.push_back(steps[i]);
+    if (steps.size()==18)
+    {
+        for (int i = 0; i < 18; i++) {
+            states_step.push_back(steps[i]);
+        }
     }
-
-    record_state(gravity[0]);
-    record_state(gravity[1]);
-    record_state(gravity[2]);
+    
+    if (gravity.size()==3)
+    {
+        record_state(gravity[0]);
+        record_state(gravity[1]);
+        record_state(gravity[2]);
+    }
 
     _simpleLCM.publish("state_estimator_data", &body_state_simple);
     _simpleLCM.publish("leg_control_data", &joint_state_simple);
@@ -385,40 +393,47 @@ void Custom::RobotControl()
         record_action(joint_command_simple.qd_des[i]);
     }
 
+    // cout << "Torque: [ ";
+    // for(int i = 0; i < 12; i++)
+    // {
+    //     cmd.motorCmd[i].q = record_action(joint_command_simple.q_des[i]);
+    //     // cmd.motorCmd[i].dq = joint_command_simple.qd_des[i];
+    //     cmd.motorCmd[i].dq = 0;
+    //     cmd.motorCmd[i].Kp = joint_command_simple.kp[i];
+    //     cmd.motorCmd[i].Kd = joint_command_simple.kd[i];
+    //     cmd.motorCmd[i].tau = joint_command_simple.tau_ff[i];
 
-    cout << "Torque: [ ";
-    for(int i = 0; i < 12; i++)
-    {
-        cmd.motorCmd[i].q = record_action(joint_command_simple.q_des[i]);
-        // cmd.motorCmd[i].dq = joint_command_simple.qd_des[i];
-        cmd.motorCmd[i].dq = 0;
-        cmd.motorCmd[i].Kp = joint_command_simple.kp[i];
-        cmd.motorCmd[i].Kd = joint_command_simple.kd[i];
-        cmd.motorCmd[i].tau = joint_command_simple.tau_ff[i];
+    //     // cout<< cmd.motorCmd[i].tau << ", ";
+    //     cout<< state.motorState[i].tauEst << ", ";
+    // }
+    // cout<< "]";
 
-        cout<< cmd.motorCmd[i].tau << ", ";
-    }
-    cout<< "]";
-
-
-    /** 
+    cout<<"####################################"<<endl;
     for(int i = 0; i < 12; i++){
-        '''
-        Torque Mode
-        '''
+       
+       /** Torque Mode*/ 
+
         // cmd.motorCmd[i].mode = 1;
         cmd.motorCmd[i].q = PosStopF; // 2.146E+9f
         cmd.motorCmd[i].dq = VelStopF; // 16000.0f
         cmd.motorCmd[i].Kp = 0;
         cmd.motorCmd[i].Kd = 0;
-        float torque = (record_action(joint_command_simple.q_des[i]) - state.motorState[i].q) * joint_command_simple.kp[i] + (0 - state.motorState[i].dq) * joint_command_simple.kd[i]; // + joint_command_simple.tau_ff[i]
+        float torque = (record_action(joint_command_simple.q_des[i]) - state.motorState[i].q) * joint_command_simple.kp[i] + (0 - state.motorState[i].dq) * joint_command_simple.kd[i] + joint_command_simple.tau_ff[i];
         if (torque > MAX_TORQUE)
             torque = MAX_TORQUE;
         if (torque < -MAX_TORQUE)
             torque = -MAX_TORQUE;
+        cout<<torque<<" ";
         cmd.motorCmd[i].tau = torque;
     }
-    **/
+    cout<<endl;
+    // for(int i=0;i<12;i++)
+    // {
+    //     cout<< "Desired: " << joint_command_simple.q_des[i]<<" <-  "<<" Current: "<<state.motorState[i].q<<" ";
+    // }
+    // cout<<endl;
+    
+    cout<<"####################################"<<endl;
 
     safe.PositionLimit(cmd);
     // int res1 = safe.PowerProtect(cmd, state, 9);
