@@ -60,6 +60,12 @@ target_link_libraries(example_torque_aliengo ${EXTRA_LIBS})
 add_executable(lcm_position HDF5_recorder.h T265_reader.h lcm_position.cpp)
 target_link_libraries(lcm_position ${EXTRA_LIBS} ${HDF5_CXX_LIBRARIES} ${realsense2_LIBRARY} ${HDF5_LIBRARIES})
 
+add_executable(pd_variation examples/example_pd_variation.cpp)
+target_link_libraries(pd_variation ${EXTRA_LIBS})
+
+add_executable(torque_test examples/example_torque_test.cpp)
+target_link_libraries(torque_test ${EXTRA_LIBS})
+
 add_executable(test T265_reader.h test.cpp)
 target_link_libraries(test ${EXTRA_LIBS})
 
