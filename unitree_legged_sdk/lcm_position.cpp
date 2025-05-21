@@ -129,6 +129,7 @@ public:
     //PositionGravityStateHandler handler;
     std::vector<float> gravity;
     std::vector<float> steps;
+    PositionGravityState camera_state;
 };
 
 void Custom::handleMessageLCM(const lcm::ReceiveBuffer* rbuf, const std::string& chan, const PositionGravityState* msg) {
@@ -151,14 +152,14 @@ void Custom::handleMessageLCM(const lcm::ReceiveBuffer* rbuf, const std::string&
     {
         steps.push_back(msg->data[i]);
     }
-    std::cout << "Received states_step vector: [";
-    for (size_t i = 0; i < steps.size(); ++i) {
-        std::cout << steps[i];
-        if (i < steps.size() - 1) {
-            std::cout << ", ";
-        }
-    }
-    std::cout << "]" << std::endl;
+    // std::cout << "Received states_step vector: [";
+    // for (size_t i = 0; i < steps.size(); ++i) {
+    //     std::cout << steps[i];
+    //     if (i < steps.size() - 1) {
+    //         std::cout << ", ";
+    //     }
+    // }
+    //std::cout << "]" << std::endl;
 }
 
 void Custom::init()
@@ -204,6 +205,7 @@ void Custom::init()
 
 void Custom::UDPRecv()
 {
+    // printf("UDP RECEIVED");   
     udp.Recv();
 }
 
@@ -312,6 +314,7 @@ void Custom::RobotControl()
     rc_command.mode = mode;
 
     // publish state to LCM
+    //cout<<"Motor Position State: ";
     for(int i = 0; i < 12; i++)
     {
         // joint_state_simple.q[i] = state.motorState[i].q;
@@ -319,6 +322,7 @@ void Custom::RobotControl()
         // joint_state_simple.tau_est[i] = state.motorState[i].tauEst;
 
         joint_state_simple.q[i] = record_state(state.motorState[i].q);
+        //cout<<state.motorState[i].q<<", ";
     }
 
     for(int i = 0; i < 12; i++)
@@ -326,6 +330,8 @@ void Custom::RobotControl()
         joint_state_simple.qd[i] = record_state(state.motorState[i].dq);
         joint_state_simple.tau_est[i] = state.motorState[i].tauEst;
     }
+
+    
     
     // record_action(state.motorState[i].tauEst);
     
@@ -335,11 +341,23 @@ void Custom::RobotControl()
     }
 
     for(int i = 0; i < 3; i++)
-    {
+    {  
         body_state_simple.rpy[i] = record_state(state.imu.rpy[i]);
+        //cout<<body_state_simple.rpy[i]<<" ";
         body_state_simple.aBody[i] = record_state(state.imu.accelerometer[i]);
         body_state_simple.omegaBody[i] = record_state(state.imu.gyroscope[i]);
     }
+
+    std::vector<float>  gra = compute_gravity_vector(body_state_simple.rpy[0], body_state_simple.rpy[1], body_state_simple.rpy[2]);
+    //cout<<"[ RPY: "<<body_state_simple.rpy[0]<<", "<<body_state_simple.rpy[1]<<", "<<body_state_simple.rpy[2]<<" ]"<<endl;
+    cout<<"[ gravity FROM State IMU: "<<gra[0]<<", "<<gra[1]<<", "<<gra[2]<<" ]"<<endl;
+
+
+    // cout<<"[ quat IMU: "<<body_state_simple.quat[0]<<", "<<body_state_simple.quat[1]<<", "<<body_state_simple.quat[2]<<", "<<body_state_simple.quat[3]<<" ]"<<endl;
+    // cout<<"[ rpy IMU: "<<state.imu.rpy[0]<<", "<<state.imu.rpy[1]<<", "<<state.imu.rpy[2]<<" ]"<<endl;
+    // cout<<"[ accelerometer IMU: "<<state.imu.accelerometer[0]<<", "<<state.imu.accelerometer[1]<<", "<<state.imu.accelerometer[2]<<" ]"<<endl;
+    // cout<<"[ gyroscope IMU: "<<state.imu.gyroscope[0]<<", "<<state.imu.gyroscope[1]<<", "<<state.imu.gyroscope[2]<<" ]"<<endl;
+
 
     for(int i = 0; i < 4; i++)
     {
@@ -365,6 +383,7 @@ void Custom::RobotControl()
     {
         for (int i = 0; i < 18; i++) {
             states_step.push_back(steps[i]);
+            camera_state.data[i] = steps[i];
         }
     }
     
@@ -373,11 +392,17 @@ void Custom::RobotControl()
         record_state(gravity[0]);
         record_state(gravity[1]);
         record_state(gravity[2]);
+        for (int i = 0; i < 3; i++) {
+            camera_state.gravity[i] = gravity[i];
+        }
+
+        //cout<<"Gravity: [ "<<gravity[0]<<", "<<gravity[1]<<", "<<gravity[2]<<" ]"<<endl;
     }
 
     _simpleLCM.publish("state_estimator_data", &body_state_simple);
     _simpleLCM.publish("leg_control_data", &joint_state_simple);
     _simpleLCM.publish("rc_command", &rc_command);
+    _simpleLCM.publish("camera_state_python", &camera_state);
 
     if(_firstRun && joint_state_simple.q[0] != 0)
     {
@@ -408,7 +433,7 @@ void Custom::RobotControl()
     // }
     // cout<< "]";
 
-    cout<<"####################################"<<endl;
+    //cout<<"####################################"<<endl;
     for(int i = 0; i < 12; i++){
        
        /** Torque Mode*/ 
@@ -423,17 +448,18 @@ void Custom::RobotControl()
             torque = MAX_TORQUE;
         if (torque < -MAX_TORQUE)
             torque = -MAX_TORQUE;
-        cout<<torque<<" ";
-        cmd.motorCmd[i].tau = torque;
+        //cout<<torque<<" ";
+        // cmd.motorCmd[i].tau = torque;
+        cmd.motorCmd[i].tau = 0;
     }
-    cout<<endl;
+    //cout<<endl;
     // for(int i=0;i<12;i++)
     // {
     //     cout<< "Desired: " << joint_command_simple.q_des[i]<<" <-  "<<" Current: "<<state.motorState[i].q<<" ";
     // }
     // cout<<endl;
     
-    cout<<"####################################"<<endl;
+    // cout<<"####################################"<<endl;
 
     safe.PositionLimit(cmd);
     // int res1 = safe.PowerProtect(cmd, state, 9);
@@ -441,16 +467,17 @@ void Custom::RobotControl()
     
     udp.SetSend(cmd);
     
-    if(counter >= 10)
-    {
-        HDF5Recorder.record_step(actions_step, states_step);
-        counter = 0;
-    }
-    else
-    {
-        counter++;
-    }
+    // if(counter >= 10)
+    // {
+    //     HDF5Recorder.record_step(actions_step, states_step);
+    //     counter = 0;
+    // }
+    // else
+    // {
+    //     counter++;
+    // }
 
+    /*
     for(auto vel: states_step){
         std::cout<<vel<< "  ";
     }
@@ -458,6 +485,7 @@ void Custom::RobotControl()
         std::cout<<states_step[i]<<"  ";
     }
     std::cout<<std::endl;
+    */
 }
 
 
