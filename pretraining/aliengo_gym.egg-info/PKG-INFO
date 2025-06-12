@@ -1,0 +1,7 @@
+Metadata-Version: 2.1
+Name: aliengo_gym
+Version: 1.0.0
+Summary: Toolkit for deployment of sim-to-real RL on the Unitree Aliengo.
+Author: Gabriel Margolis
+Author-email: gmargo@mit.edu
+License: BSD-3-Clause
