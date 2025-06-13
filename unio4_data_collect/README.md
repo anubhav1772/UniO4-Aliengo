@@ -1,11 +1,11 @@
-### List of Observations
+### List of Observations / Commands
 
 | No. | Feature                | Dimension | Description                              |
 |-----|------------------------|-----------|------------------------------------------|
 | 1   | `gravity_vector`       | 3         | Gravity direction vector                 |
 | 2   | `x_vel`                | 1         | Commanded x-axis velocity                |
 | 3   | `y_vel`                | 1         | Commanded y-axis velocity                |
-| 4   | `yaw_vel`             | 1         | Commanded yaw rate                       |
+| 4   | `yaw_vel`              | 1         | Commanded yaw rate                       |
 | 5   | `body_height`          | 1         | Commanded body height                    |
 | 6   | `step_freq`            | 1         | Gait frequency (Hz)                      |
 | 7   | `gait`                 | 3         | Gait timing: [phase, offset, bounds]     |
@@ -23,7 +23,7 @@
 
 ---
 
-** Total Observation Dimension**: **58**  
+**Total Observation Dimension**: **58**  
 - Commands & States: 18 values  
 - DOF-related: 36 values  
 - Clock Inputs: 4 values  
