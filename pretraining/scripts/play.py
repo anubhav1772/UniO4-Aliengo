@@ -141,6 +141,23 @@ def play_aliengo(headless=True):
         measured_x_vels[i] = env.base_lin_vel[0, 0]
         joint_positions[i] = env.dof_pos[0, :].cpu()
 
+    # import pandas as pd
+    # # Combine all data into a single DataFrame
+    # # Create column names for joints
+    # joint_cols = [f'joint_{i}' for i in range(joint_positions.shape[1])]
+    #
+    # df = pd.DataFrame({
+    #             'time': np.linspace(0, num_eval_steps * env.dt, num_eval_steps),
+    #             'x_velocity': measured_x_vels
+    #             })
+    #
+    # # Add joint position columns
+    # for i, col in enumerate(joint_cols):
+    #     df[col] = joint_positions[:, i]
+    #
+    # # Save to CSV
+    # df.to_csv("aliengo_evaluation_results.csv", index=False)
+
     # plot target and measured forward velocity
     from matplotlib import pyplot as plt
     fig, axs = plt.subplots(2, 1, figsize=(12, 5))
@@ -162,3 +179,4 @@ def play_aliengo(headless=True):
 if __name__ == '__main__':
     # to see the environment rendering, set headless=False
     play_aliengo(headless=False)
+
