@@ -40,11 +40,12 @@ class reward_aliengo(object):
         self.base_ang_acc = self.root_ang_states[6:9]
 
         
+    # FOR ALIENGO
     def calculate_reward(self,):
-        positive_reward = (0.8* self._reward_tracking_lin_vel()+0.7* self._reward_tracking_ang_vel())
-        negative_reward = (-0.02)*self._reward_lin_vel_z()+(-0.001)* self._reward_ang_vel_xy()+(-0.00005)*self._reward_torques()+(-2.5e-7)*self._reward_dof_acc()+(-0.01)*self._reward_action_rate()+(-1e-4)*self._reward_dof_vel()+(-0.1)*(self._reward_action_smoothness_1()+self._reward_action_smoothness_2())
+        positive_reward = (1.0)*self._reward_tracking_lin_vel()+(0.5)*self._reward_tracking_ang_vel())
+        negative_reward = (-0.02)*self._reward_lin_vel_z()+(-0.001)* self._reward_ang_vel_xy()+(-0.0001)*self._reward_torques()+(-2.5e-7)*self._reward_dof_acc()+(-0.01)*self._reward_action_rate()+(-1e-4)*self._reward_dof_vel()+(-0.1)*(self._reward_action_smoothness_1()+self._reward_action_smoothness_2())
         reward = positive_reward * torch.exp(negative_reward)/10
-        return reward.numpy()
+        return reward.numpy().item()
 
 
     # ------------ reward functions----------------
