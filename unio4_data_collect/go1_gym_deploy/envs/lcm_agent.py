@@ -143,7 +143,6 @@ class LCMAgent():
         self.is_currently_probing = is_currently_probing
 
     def get_obs(self):
-
         self.gravity_vector = self.se.get_gravity_vector()
         cmds, reset_timer = self.command_profile.get_command(self.timestep * self.dt, probe=self.is_currently_probing)
         self.commands[:, :] = cmds[:self.num_commands]
@@ -200,6 +199,25 @@ class LCMAgent():
             heights = np.clip(robot_height - 0.5 - self.measured_heights, -1, 1.) * self.obs_scales["height_measurements"]
             ob = np.concatenate((ob, heights), axis=1)
 
+        #########################################
+        print(30*"#")
+
+        print("gravity_vector: "+str(self.gravity_vector.reshape(1, -1).shape))
+        print("commands: "+str(self.commands.shape))
+        print("dof_pos: "+str((self.dof_pos - self.default_dof_pos).reshape(1, -1).shape))
+        print("dof_vel: "+str(self.dof_vel.reshape(1, -1).shape))
+        print("actions: "+str(self.actions.shape))
+
+        print("observe_two_prev_actions: "+str(self.cfg["env"]["observe_two_prev_actions"]) + " Shape: "+str(self.last_actions.cpu().detach().numpy().reshape(1, -1).shape))
+        print("observe_clock_inputs: "+str(self.cfg["env"]["observe_clock_inputs"]) +" Shape: "+str(self.clock_inputs.shape))
+        print("observe_vel: "+str(self.cfg["env"]["observe_vel"]) +" Shape: "+str(self.body_linear_vel.reshape(1, -1).shape + self.body_angular_vel.reshape(1, -1).shape))
+        print("observe_only_lin_vel: "+str(self.cfg["env"]["observe_only_lin_vel"]) +" Shape: "+str(self.body_linear_vel.reshape(1, -1).shape))
+        print("observe_yaw: "+str(self.cfg["env"]["observe_yaw"]))
+        # print("observe_yaw: "+str(self.cfg["env"]["observe_yaw"]) +" Shape: "+str(heading.reshape(1, -1).shape))
+        print("observe_contact_states: "+str("observe_contact_states" in self.cfg["env"].keys() and self.cfg["env"]["observe_contact_states"]) +" Shape: "+str(self.contact_state.reshape(1, -1).shape))
+        print("terrain height (x,y): "+str("terrain" in self.cfg.keys() and self.cfg["terrain"]["measure_heights"]))
+        print(30*"#")
+        #########################################
 
         return torch.tensor(ob, device=self.device).float()
 
@@ -215,7 +233,7 @@ class LCMAgent():
         # data_to_record = self.T265Pose.appendPoseData(data.observation)
         
 
-    def publish_action(self, action, hard_reset=False):
+    def publish_action(self, action, calibrated=False, hard_reset=False):
 
         command_for_robot = pd_tau_targets_lcmt()
         self.joint_pos_target = \
@@ -241,6 +259,8 @@ class LCMAgent():
         if hard_reset:
             command_for_robot.id = -1
 
+        command_for_robot.calibrated = calibrated
+
         self.torques = (self.joint_pos_target - self.dof_pos) * self.p_gains + (self.joint_vel_target - self.dof_vel) * self.d_gains
         # command_for_robot.qd_des = action[0,:12].detach().cpu().numpy()# To record raw action!
         # print("raw action: ", command_for_robot.qd_des)
@@ -255,11 +275,11 @@ class LCMAgent():
     def reset_gait_indices(self):
         self.gait_indices = torch.zeros(self.num_envs, dtype=torch.float)
 
-    def step(self, actions, hard_reset=False):
+    def step(self, actions, calibrated=False, hard_reset=False):
         clip_actions = self.cfg["normalization"]["clip_actions"]
         self.last_actions = self.actions[:]
         self.actions = torch.clip(actions[0:1, :], -clip_actions, clip_actions)
-        self.publish_action(self.actions, hard_reset=hard_reset)
+        self.publish_action(self.actions, calibrated, hard_reset=hard_reset)
         time.sleep(max(self.dt - (time.time() - self.time), 0))
         if self.timestep % 100 == 0: print(f'frq: {1 / (time.time() - self.time)} Hz')
         self.time = time.time()
@@ -270,9 +290,11 @@ class LCMAgent():
         phases = self.commands[:, 5]
         offsets = self.commands[:, 6]
         if self.num_commands == 8:
+            print("HELLLLO 1")
             bounds = 0
             durations = self.commands[:, 7]
         else:
+            print("HELLLLO 1")
             bounds = self.commands[:, 7]
             durations = self.commands[:, 8]
         self.gait_indices = torch.remainder(self.gait_indices + self.dt * frequencies, 1.0)
