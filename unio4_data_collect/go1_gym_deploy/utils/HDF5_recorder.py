@@ -38,6 +38,7 @@ class HDF5_recorder:
         dones = np.array(self.dones)
         with h5py.File("{}/{}.hdf5".format(self.folder_name, self.timestamp), 'w') as f:
             f.create_dataset("actions", data=actions)
+            print("states shape ="+str(states.shape))
             assert states.shape[1] == 76, 'the shape is not aligned'
             f.create_dataset("states", data=states)
             f.create_dataset("next_states", data=next_states)
