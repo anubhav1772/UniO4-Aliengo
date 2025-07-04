@@ -2,12 +2,22 @@ import copy
 import time
 import os
 
+import math
+import select
+
 import numpy as np
 import torch
+import lcm
+
+import threading
 
 from go1_gym_deploy.utils.logger import MultiLogger
-from go1_gym_deploy.utils.T265_reader import RealSensePose
+# from go1_gym_deploy.utils.T265_reader import RealSensePose
 from go1_gym_deploy.utils.HDF5_recorder import HDF5_recorder
+# from go1_gym_deploy.lcm_types.camera_message_lcmt import camera_message_lcmt
+from go1_gym_deploy.lcm_types.PositionGravityState import PositionGravityState
+
+lc = lcm.LCM("udpm://239.255.76.67:7667?ttl=255")
 
 class DeploymentRunner:
     def __init__(self, experiment_name="unnamed", se=None, log_root="."):
@@ -30,7 +40,7 @@ class DeploymentRunner:
         self.is_currently_logging = [False, False, False, False]
 
         self.hdf5_recorder = HDF5_recorder()
-        #self.T265_reader = RealSensePose()
+        # self.T265_reader = RealSensePose()
 
     def init_log_filename(self):
         datetime = time.strftime("%Y/%m_%d/%H_%M_%S")
@@ -63,6 +73,28 @@ class DeploymentRunner:
 
     def add_command_profile(self, command_profile):
         self.command_profile = command_profile
+    
+    def poll(self, cb=None):
+        t = time.time()
+        try:
+            while True:
+                timeout = 0.01
+                rfds, wfds, efds = select.select([lc.fileno()], [], [], timeout)
+                if rfds:
+                    # print("message received!")
+                    lc.handle()
+                    # print(f'Freq {1. / (time.time() - t)} Hz'); t = time.time()
+                else:
+                    continue
+                    # print(f'waiting for message... Freq {1. / (time.time() - t)} Hz'); t = time.time()
+                #    if cb is not None:
+                #        cb()
+        except KeyboardInterrupt:
+            pass
+    
+    def spin(self):
+        self.run_thread = threading.Thread(target=self.poll, daemon=False)
+        self.run_thread.start()
 
     def calibrate(self, wait=True, low=False):
         # first, if the robot is not in nominal pose, move slowly to the nominal pose
@@ -128,7 +160,8 @@ class DeploymentRunner:
                     next_target[[0, 3, 6, 9]] /= hip_reduction # here, 0, 3, 6, 9 array indices are for hip
                     next_target = next_target / action_scale
                     cal_action[:, 0:12] = next_target
-                    agent.step(torch.from_numpy(cal_action))
+                    is_calibrated = False
+                    agent.step(torch.from_numpy(cal_action), calibrated=is_calibrated)
                     agent.get_obs()
                     time.sleep(0.05)
 
@@ -147,21 +180,30 @@ class DeploymentRunner:
         return control_obs
 
 
-    def run(self, num_log_steps=1000000000, max_steps=100000000, logging=True):
+    def _camera_cb(self, channel, data):
+        msg = PositionGravityState.decode(data)
+
+        self.gravity = np.array(msg.gravity)
+
+        self.camera_data = np.array(msg.data)
+        #print(self.camera_data)
+
+    def run(self, num_log_steps=1000, max_steps=10000, logging=True):
         assert self.control_agent_name is not None, "cannot deploy, runner has no control agent!"
         assert self.policy is not None, "cannot deploy, runner has no policy!"
         assert self.command_profile is not None, "cannot deploy, runner has no command profile!"
 
         # TODO: add basic test for comms
-        #print(50*'^')
-        #print(self.control_agent_name)
-        #print(self.agents.keys())
+
         for agent_name in self.agents.keys():
             obs = self.agents[agent_name].reset()
             #print("agent obs: "+str(obs))
             if agent_name == self.control_agent_name:
                 control_obs = obs
-        #print(50*'-')
+
+        self.gravity = None
+
+        self.camera_data = None
 
         control_obs = self.calibrate(wait=True)
         print('printing control obs returned after calibration step: '+str(control_obs))
@@ -171,30 +213,41 @@ class DeploymentRunner:
         try:
             while count < max_steps:
                 done = False
-                print('dog reset after press r2')
+                print('dog reset after press R2')
 
                 if count != 0:
                     control_obs = self.calibrate(wait=False, low=True)
                     obs_record = control_obs["obs"][0,:].detach().cpu().numpy().tolist()
-                print('obs_len: {}'.format(len(obs_record)))
+                #print('obs_len: {}'.format(len(obs_record)))
                 time_before_append = time.time()
                 # T265 Tracking Camera
                 # -------------------------------------
+                """
                 if(not self.T265_reader.appendPoseData(obs_record)):
                     self.T265_reader.reset()
                     continue
+                """
+                # obs_camera_subscribtion = lc.subscribe("POSITION_GRAVITY_STATE", self._camera_cb)
+                obs_camera_subscribtion = lc.subscribe("camera_python", self._camera_cb)
+                self.spin()
+                if (self.camera_data is not None and len(self.camera_data.tolist()) != 18):
+                    # obs_camera_subscribtion = lc.subscribe("POSITION_GRAVITY_STATE", self._camera_cb)
+                    # self.T265_reader.reset()
+                    continue
+                
                 # -------------------------------------
                 time_after_append = time.time()
                 print("before while not done delta time {}s".format(time_after_append-time_before_append))
 
                 while not done:
+                    is_calibrated = True
                     policy_info = {}
                     action = self.policy(control_obs, policy_info)
                     act_record = action[0, :12].detach().cpu().numpy()
 
                     #cat next observation
                     for agent_name in self.agents.keys():
-                        obs, ret, _, info = self.agents[agent_name].step(action)
+                        obs, ret, _, info = self.agents[agent_name].step(action, calibrated=is_calibrated)
                         if agent_name == self.control_agent_name:
                             next_control_obs, control_ret, control_done, control_info = obs, ret, _, info
                             next_obs_record = next_control_obs["obs"][0,:].detach().cpu().numpy().tolist()
@@ -203,7 +256,11 @@ class DeploymentRunner:
                     
                     # T265 Tracking Camera
                     # -------------------------------------
+                    """
                     if(not self.T265_reader.appendPoseData(next_obs_record)):
+                        break
+                    """
+                    if (self.camera_data is not None and len(self.camera_data.tolist()) != 18):
                         break
                     # -------------------------------------
                     time_after_append = time.time()
@@ -215,17 +272,25 @@ class DeploymentRunner:
                     # bad orientation emergency stop
                     rpy = self.agents[self.control_agent_name].se.get_rpy()
                     
-                    if abs(rpy[0]) > 1.6 or abs(rpy[1]) > 1.6:
+                    if abs(rpy[0]) > 1.6 or abs(rpy[1]) > 1.6 or (count == max_steps):
                         done = True
                     else:
                         done = False
+                    
+                    obs_camera = self.camera_data.tolist()
+                    while len(obs_camera) != 18: # not necessary
+                        continue
 
+                    print('$'*20)
+                    print("camera observations: "+str(obs_camera))
+                    print('#'*20)
+                    obs_record.extend(obs_camera) ##
                     self.hdf5_recorder.record_step(state=np.array(obs_record), action=act_record, next_state = np.array(next_obs_record), done=done)
+                    # self.hdf5_recorder.save_file()
                     count += 1
                     print('count------------------------: {}'.format(count))
                     obs_record = next_obs_record
                     control_obs = next_control_obs
-
 
             # finally, return to the nominal pose
             control_obs = self.calibrate(wait=True)
@@ -233,6 +298,3 @@ class DeploymentRunner:
 
         except KeyboardInterrupt:
             self.logger.save(self.log_filename)
-
-
-    
