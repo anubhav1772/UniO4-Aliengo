@@ -116,6 +116,12 @@ class RCControllerProfile(CommandProfile):
         command[1] = command[1] * self.y_scale
         command[2] = command[2] * self.yaw_scale
 
+        print("x scale "+str(self.x_scale))
+        print("y scale "+str(self.y_scale))
+        print("yaw scale "+str(self.yaw_scale))
+
+        print("vel: "+str(command))
+
         reset_timer = False
 
         if probe:
@@ -139,8 +145,10 @@ class RCControllerProfile(CommandProfile):
                 # execute the triggered action
                 if self.currently_triggered[button] and t < self.triggered_commands[button].max_timestep:
                     command = self.triggered_commands[button].get_command(t)
-
-
+        # commands x, y, yaw
+        command[0] = 0.5
+        command[1] = 0.0
+        command[2] = 0
         return command, reset_timer
 
     def add_triggered_command(self, button_idx, command_profile):
