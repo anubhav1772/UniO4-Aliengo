@@ -1,5 +1,11 @@
 ### List of Observations / Commands
 
+<table>
+  <tr>
+    <td><img src="https://drive.google.com/uc?export=view&id=1Tp0pox7x3wJ6NP0vMtJD5i3ac7CSEqH3" width=1800 height=150></td>
+  </tr>
+ </table>
+
 | No. | Feature                | Dimension | Description                              |
 |-----|------------------------|-----------|------------------------------------------|
 | 1   | `gravity_vector`       | 3         | Gravity direction vector                 |
@@ -27,4 +33,5 @@
 - Commands & States: 18 values  
 - DOF-related: 36 values  
 - Clock Inputs: 4 values  
+
 
