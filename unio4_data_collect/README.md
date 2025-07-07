@@ -2,7 +2,7 @@
 
 <table>
   <tr>
-    <td><img src="https://drive.google.com/uc?export=view&id=1Tp0pox7x3wJ6NP0vMtJD5i3ac7CSEqH3" width=1800 height=150></td>
+    <td><img src="https://drive.google.com/uc?export=view&id=1Tp0pox7x3wJ6NP0vMtJD5i3ac7CSEqH3" width=2000 height=350></td>
   </tr>
  </table>
 
