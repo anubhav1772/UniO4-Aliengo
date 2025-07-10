@@ -17,7 +17,9 @@ def load_and_run_policy(label, experiment_name, args, max_vel=1.0, max_yaw_vel=1
     # dirs = glob.glob(f"../../runs/{label}/*")
     # print('file:', dirs)
     # logdir = sorted(dirs)[-1]
-    logdir = '/home/anubhav1772/Documents/unio4_data_collect/runs/gait-conditioned-agility/itmo/train/050612.037196'
+    # logdir = '/home/anubhav1772/Documents/unio4_data_collect/runs/gait-conditioned-agility/itmo/train/225604.725924'
+    #logdir = '/home/anubhav1772/Documents/unio4_data_collect/runs/gait-conditioned-agility/itmo/train/010358.914591'
+    logdir = '/home/anubhav1772/Documents/unio4_data_collect/runs/gait-conditioned-agility/itmo/train/113428.802625'
     with open(logdir+"/parameters.pkl", 'rb') as file:
         pkl_cfg = pkl.load(file)
         #print(logdir+"/parameters.pkl")
@@ -31,7 +33,12 @@ def load_and_run_policy(label, experiment_name, args, max_vel=1.0, max_yaw_vel=1
     se = StateEstimator(lc)
 
     control_dt = 0.02
-    command_profile = RCControllerProfile(dt=control_dt, state_estimator=se, x_scale=max_vel, y_scale=0.6, yaw_scale=max_yaw_vel)
+
+    seconds_to_end = 20
+    max_steps = 50 * seconds_to_end
+    print(f'max steps {max_steps}')
+
+    command_profile = RCControllerProfile(dt=control_dt, state_estimator=se, x_scale=max_vel, y_scale=1.0, yaw_scale=max_yaw_vel, max_steps=max_steps)
 
     hardware_agent = LCMAgent(cfg, se, command_profile)
     se.spin()
@@ -53,9 +60,7 @@ def load_and_run_policy(label, experiment_name, args, max_vel=1.0, max_yaw_vel=1
     deployment_runner.add_policy(policy)
     deployment_runner.add_command_profile(command_profile)
 
-
-    max_steps = 100000000
-    print(f'max steps {max_steps}')
+    
 
     deployment_runner.run(max_steps=max_steps, logging=True)
 
@@ -131,4 +136,4 @@ if __name__ == '__main__':
     # label = "gait-conditioned-agility/1000wan_ft/train"
     label = "gait-conditioned-agility/itmo/train"
     experiment_name = "aliengo_offline_dataset"
-    load_and_run_policy(label, experiment_name=experiment_name, args=args, max_vel=0.5, max_yaw_vel=0.5)
+    load_and_run_policy(label, experiment_name=experiment_name, args=args, max_vel=1.0, max_yaw_vel=1.0)
