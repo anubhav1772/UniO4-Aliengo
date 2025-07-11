@@ -200,23 +200,23 @@ class LCMAgent():
             ob = np.concatenate((ob, heights), axis=1)
 
         #########################################
-        print(30*"#")
+        # print(30*"#")
 
-        print("gravity_vector: "+str(self.gravity_vector.reshape(1, -1).shape))
-        print("commands: "+str(self.commands.shape))
-        print("dof_pos: "+str((self.dof_pos - self.default_dof_pos).reshape(1, -1).shape))
-        print("dof_vel: "+str(self.dof_vel.reshape(1, -1).shape))
-        print("actions: "+str(self.actions.shape))
+        # print("gravity_vector: "+str(self.gravity_vector.reshape(1, -1).shape))
+        # print("commands: "+str(self.commands.shape))
+        # print("dof_pos: "+str((self.dof_pos - self.default_dof_pos).reshape(1, -1).shape))
+        # print("dof_vel: "+str(self.dof_vel.reshape(1, -1).shape))
+        # print("actions: "+str(self.actions.shape))
 
-        print("observe_two_prev_actions: "+str(self.cfg["env"]["observe_two_prev_actions"]) + " Shape: "+str(self.last_actions.cpu().detach().numpy().reshape(1, -1).shape))
-        print("observe_clock_inputs: "+str(self.cfg["env"]["observe_clock_inputs"]) +" Shape: "+str(self.clock_inputs.shape))
-        print("observe_vel: "+str(self.cfg["env"]["observe_vel"]) +" Shape: "+str(self.body_linear_vel.reshape(1, -1).shape + self.body_angular_vel.reshape(1, -1).shape))
-        print("observe_only_lin_vel: "+str(self.cfg["env"]["observe_only_lin_vel"]) +" Shape: "+str(self.body_linear_vel.reshape(1, -1).shape))
-        print("observe_yaw: "+str(self.cfg["env"]["observe_yaw"]))
-        # print("observe_yaw: "+str(self.cfg["env"]["observe_yaw"]) +" Shape: "+str(heading.reshape(1, -1).shape))
-        print("observe_contact_states: "+str("observe_contact_states" in self.cfg["env"].keys() and self.cfg["env"]["observe_contact_states"]) +" Shape: "+str(self.contact_state.reshape(1, -1).shape))
-        print("terrain height (x,y): "+str("terrain" in self.cfg.keys() and self.cfg["terrain"]["measure_heights"]))
-        print(30*"#")
+        # print("observe_two_prev_actions: "+str(self.cfg["env"]["observe_two_prev_actions"]) + " Shape: "+str(self.last_actions.cpu().detach().numpy().reshape(1, -1).shape))
+        # print("observe_clock_inputs: "+str(self.cfg["env"]["observe_clock_inputs"]) +" Shape: "+str(self.clock_inputs.shape))
+        # print("observe_vel: "+str(self.cfg["env"]["observe_vel"]) +" Shape: "+str(self.body_linear_vel.reshape(1, -1).shape + self.body_angular_vel.reshape(1, -1).shape))
+        # print("observe_only_lin_vel: "+str(self.cfg["env"]["observe_only_lin_vel"]) +" Shape: "+str(self.body_linear_vel.reshape(1, -1).shape))
+        # print("observe_yaw: "+str(self.cfg["env"]["observe_yaw"]))
+        # # print("observe_yaw: "+str(self.cfg["env"]["observe_yaw"]) +" Shape: "+str(heading.reshape(1, -1).shape))
+        # print("observe_contact_states: "+str("observe_contact_states" in self.cfg["env"].keys() and self.cfg["env"]["observe_contact_states"]) +" Shape: "+str(self.contact_state.reshape(1, -1).shape))
+        # print("terrain height (x,y): "+str("terrain" in self.cfg.keys() and self.cfg["terrain"]["measure_heights"]))
+        # print(30*"#")
         #########################################
 
         return torch.tensor(ob, device=self.device).float()
@@ -290,11 +290,9 @@ class LCMAgent():
         phases = self.commands[:, 5]
         offsets = self.commands[:, 6]
         if self.num_commands == 8:
-            print("HELLLLO 1")
             bounds = 0
             durations = self.commands[:, 7]
         else:
-            print("HELLLLO 1")
             bounds = self.commands[:, 7]
             durations = self.commands[:, 8]
         self.gait_indices = torch.remainder(self.gait_indices + self.dt * frequencies, 1.0)
