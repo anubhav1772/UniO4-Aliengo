@@ -27,11 +27,39 @@
 | 17  | `actions`              | 12        | Previous actions taken                   |
 | 18  | `clock_inputs`         | 4         | Sinusoidal clock encoding per leg        |
 
----
 
 **Total Observation Dimension**: **58**  
 - Commands & States: 18 values  
 - DOF-related: 36 values  
-- Clock Inputs: 4 values  
+- Clock Inputs: 4 values
+
+---
+
+**Camera Observations:**
+
+| **No.**   | **Pose Feature**                     | **Description (Robot Context)**                                             |
+|-----------|--------------------------------------|-----------------------------------------------------------------------------|
+| 1         | `-translation.z`                     | Robot position Z (converted from camera frame to world/robot frame)         |
+| 2         | `-translation.x`                     | Robot position X                                                            |
+| 3         | `translation.y`                      | Robot position Y                                                            |
+| 4         | `-velocity.z`                        | Linear velocity Z                                                           |
+| 5         | `-velocity.x`                        | Linear velocity X                                                           |
+| 6         | `velocity.y`                         | Linear velocity Y                                                           |
+| 7         | `-acceleration.z`                    | Linear acceleration Z                                                       |
+| 8         | `-acceleration.x`                    | Linear acceleration X                                                       |
+| 9         | `acceleration.y`                     | Linear acceleration Y                                                       |
+| 10        | `roll`                               | Roll angle (from quaternion orientation)                                    |
+| 11        | `pitch`                              | Pitch angle                                                                 |
+| 12        | `yaw`                                | Yaw angle                                                                   |
+| 13        | `-angular_velocity.z`                | Angular velocity around Z axis                                              |
+| 14        | `-angular_velocity.x`                | Angular velocity around X axis                                              |
+| 15        | `angular_velocity.y`                 | Angular velocity around Y axis                                              |
+| 16        | `-angular_acceleration.z`            | Angular acceleration around Z axis                                          |
+| 17        | `-angular_acceleration.x`            | Angular acceleration around X axis                                          |
+| 18        | `angular_acceleration.y`             | Angular acceleration around Y axis                                          |
+
+
+
+
 
 
