@@ -110,116 +110,9 @@ class RCControllerProfile(CommandProfile):
         self.currently_triggered = [0, 0, 0, 0]
         self.button_states = [0, 0, 0, 0]
         self.max_steps = max_steps
-    
-    # def get_command(self, t, probe=False):
-    #     command = self.state_estimator.get_command()
-    #     print('$'*30)
-    #     print(command)
-    #     print('*'*30)
-    #     command[0] = command[0] * self.x_scale
-    #     command[1] = command[1] * self.y_scale
-    #     command[2] = command[2] * self.yaw_scale
-    #     # command[9] = 
-    #     # command
-    #     # command[12] = 
-    #     reset_timer = False
-    #     se = self.state_estimator
-    #     # --- Handle new buttons for velocity control ---
-    #     # Button to cycle linear velocity X (-1 ... 1)
-    #     if hasattr(se, 'button_lin_x_pressed') and se.button_lin_x_pressed and not self._last_lin_x:
-    #         self.current_lin_x += 0.25
-    #         if self.current_lin_x > 1.0:
-    #             self.current_lin_x = -1.0
-    #         print(f'[Speed] Linear velocity X: {self.current_lin_x}')
-    #     # Button to cycle linear velocity Y (-1 ... 1)
-    #     if hasattr(se, 'button_lin_y_pressed') and se.button_lin_y_pressed and not self._last_lin_y:
-    #         self.current_lin_y += 0.25
-    #         if self.current_lin_y > 1.0:
-    #             self.current_lin_y = -1.0
-    #         print(f'[Speed] Linear velocity Y: {self.current_lin_y}')
-    #     # Button to cycle yaw velocity (-1 ... 1)
-    #     if hasattr(se, 'button_yaw_pressed') and se.button_yaw_pressed and not self._last_yaw:
-    #         self.current_yaw += 0.25
-    #         if self.current_yaw > 1.0:
-    #             self.current_yaw = -1.0
-    #         print(f'[Speed] Yaw velocity: {self.current_yaw}')
-    #     # Update edge detection for new buttons
-    #     self._last_lin_x = getattr(se, 'button_lin_x_pressed', False)
-    #     self._last_lin_y = getattr(se, 'button_lin_y_pressed', False)
-    #     self._last_yaw = getattr(se, 'button_yaw_pressed', False)
-    #     # --- Apply selected velocities to the command ---
-    #     # command[0] = self.current_lin_x
-    #     # command[1] = self.current_lin_y
-    #     # command[2] = self.current_yaw
-    #     command[0] = 0
-    #     command[1] = 0
-    #     command[2] = 0
-    #     # --- Remaining logic (gait, duration, gait start) ---
-    #     # Gait buttons (single press)
-    #     if hasattr(se, 'button_A_pressed') and se.button_A_pressed and not self._last_A:
-    #         print("*************** BUTTON A PRESSED *****************")
-    #         self.gait_mode = 0  # trot
-    #     if hasattr(se, 'button_B_pressed') and se.button_B_pressed and not self._last_B:
-    #         print("*************** BUTTON B PRESSED *****************")
-    #         self.gait_mode = 1  # pace
-    #     if hasattr(se, 'button_X_pressed') and se.button_X_pressed and not self._last_X:
-    #         print("*************** BUTTON X PRESSED *****************")
-    #         self.gait_mode = 2  # bound
-    #     if hasattr(se, 'button_Y_pressed') and se.button_Y_pressed and not self._last_Y:
-    #         print("*************** BUTTON Y PRESSED *****************")
-    #         self.gait_mode = 3  # gallop
-    #     # Duration buttons
-    #     if hasattr(se, 'dpad_up_pressed') and se.dpad_up_pressed and not self._last_dpad_up:
-    #         print("*************** DPAD UP PRESSED *****************")
-    #         self.gait_duration = min(self.gait_duration + 1, 10)
-    #     if hasattr(se, 'dpad_down_pressed') and se.dpad_down_pressed and not self._last_dpad_down:
-    #         print("*************** DPAD DOWN PRESSED *****************")
-    #         self.gait_duration = max(self.gait_duration - 1, 3)
-    #     # Gait start button
-    #     if hasattr(se, 'R1_pressed') and se.R1_pressed and not self._last_R1 and not self.gait_active:
-    #         print("*************** R1 PRESSED *****************")
-    #         self.gait_active = True
-    #         self.gait_start_time = time.time()
-    #     # Update button states (edge detection)
-    #     self._last_A = getattr(se, 'button_A_pressed', False)
-    #     self._last_B = getattr(se, 'button_B_pressed', False)
-    #     self._last_X = getattr(se, 'button_X_pressed', False)
-    #     self._last_Y = getattr(se, 'button_Y_pressed', False)
-    #     self._last_dpad_up = getattr(se, 'dpad_up_pressed', False)
-    #     self._last_dpad_down = getattr(se, 'dpad_down_pressed', False)
-    #     self._last_R1 = getattr(se, 'R1_pressed', False)
-    #     # --- Gait control ---
-    #     if not self.gait_active:
-    #         command[5:8] = 0  # pronking
-    #     else:
-    #         # gait parameters by self.gait_mode
-    #         if self.gait_mode == 0:  # trot
-    #             print("*************** TROTTING *****************")
-    #             command[5] = 0.5  # phase
-    #             command[6] = 0.0  # offset
-    #             command[7] = 0.0  # bound
-    #         elif self.gait_mode == 1:  # pace
-    #             print("*************** PACING *****************")
-    #             command[5] = 0.0
-    #             command[6] = 0.0
-    #             command[7] = 0.5
-    #         elif self.gait_mode == 2:  # bound
-    #             print("*************** BOUND***************")
-    #             command[5] = 0.0
-    #             command[6] = 0.5
-    #             command[7] = 0.0
-    #         elif self.gait_mode == 3:  # gallop
-    #             print("*************** GALLOPING *****************")
-    #             command[5] = 0.25
-    #             command[6] = 0.0
-    #             command[7] = 0.0
-    #         command[8] = 0.5 # duration
-    #         # Check if gait duration is over
-    #         if self.gait_start_time is not None and (time.time() - self.gait_start_time > self.gait_duration):
-    #             self.gait_active = False
-    #     return command, reset_timer
 
     def get_command(self, t, probe=False):
+        import random
 
         command = self.state_estimator.get_command()
 
@@ -232,7 +125,7 @@ class RCControllerProfile(CommandProfile):
         print("x scale "+str(self.x_scale))
         print("y scale "+str(self.y_scale))
         print("yaw scale "+str(self.yaw_scale))
-        print("vel: "+str(command[1:4]))
+        print("vel: "+str(command[:4]))
 
         reset_timer = False
 
@@ -275,11 +168,13 @@ class RCControllerProfile(CommandProfile):
         ###########################################
 
         # GENERATE PATH
-        [x_vel_cmd, y_vel_cmd, yaw_vel_cmd] = self.path.generate_trapezoid(v_x=0.0, v_y=0.0, v_omega=1.0, acc_ratio=0.5)
-        # [x_vel_cmd, y_vel_cmd, yaw_vel_cmd] = self.path.generate_symmetric_ramp(v_x=1.5)
-        # [x_vel_cmd, y_vel_cmd, yaw_vel_cmd] = self.path.generate_circle_omni(radius=1.0, clockwise=False)
-        # [x_vel_cmd, y_vel_cmd, yaw_vel_cmd] = self.path.generate_circle_forward(radius=1.2, linear_speed=0.8, clockwise=True)
-    
+        # [x_vel_cmd, y_vel_cmd, yaw_vel_cmd] = self.path.generate_trapezoid(v_x=0.4, v_y=round(random.uniform(0.1, 0.5), 10), v_omega=0.0, acc_ratio=0.5)
+        [x_vel_cmd, y_vel_cmd, yaw_vel_cmd] = self.path.generate_symmetric_ramp(v_x=0.5)
+        # [x_vel_cmd, y_vel_cmd, yaw_vel_cmd] = self.path.generate_circle_omni(radius=round(random.uniform(0.5, 1), 10), clockwise=True)
+        # [x_vel_cmd, y_vel_cmd, yaw_vel_cmd] = self.path.generate_circle_forward(radius=0.7, linear_speed=0.7, clockwise=False)
+        # [x_vel_cmd, y_vel_cmd, yaw_vel_cmd] = self.path.generate_circle_forward(radius=round(random.uniform(0.4, 0.8), 10), linear_speed=round(random.uniform(0.5, 1.2), 10), clockwise=False)
+
+        
         command[0] = x_vel_cmd
         command[1] = y_vel_cmd
         command[2] = yaw_vel_cmd
@@ -288,7 +183,7 @@ class RCControllerProfile(CommandProfile):
         # env.commands[5:8] = gait
         # env.commands[8] = 0.5
         # env.commands[9] = footswing_height_cmd
-        command[10] = 0.1745
+        command[10] = -0.1745
         # env.commands[11] = roll_cmd
         # env.commands[12] = stance_width_cmd
 
@@ -381,3 +276,4 @@ if __name__ == "__main__":
     cmdprof = ConstantAccelerationProfile(dt=0.2, max_speed=4, accel_time=3)
     print(cmdprof.commands)
     print(cmdprof.get_command(2))
+
