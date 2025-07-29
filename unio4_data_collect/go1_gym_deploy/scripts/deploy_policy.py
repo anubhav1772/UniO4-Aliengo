@@ -34,7 +34,7 @@ def load_and_run_policy(label, experiment_name, args, max_vel=1.0, max_yaw_vel=1
 
     control_dt = 0.02
 
-    seconds_to_end = 20
+    seconds_to_end = 6
     max_steps = 50 * seconds_to_end
     print(f'max steps {max_steps}')
 
@@ -93,7 +93,7 @@ def load_policy_online(logdir):
 def load_policy_offline(logdir):
     from bppo import BehaviorCloning
     bc = BehaviorCloning("cuda:0", 58 * 5, [512, 256, 128], 3, 12, 1e-4, 512)
-    bc.load(logdir + '/offline_finetuned/pi_0.pt')
+    bc.load(logdir + '/offline_finetuned_1omega/pi_1.pt')
 
     def policy(obs, info):
         action = bc._policy.mean(obs["obs_history"].to('cuda:0'))
