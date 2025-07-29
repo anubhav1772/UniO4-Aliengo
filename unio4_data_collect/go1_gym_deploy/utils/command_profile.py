@@ -169,27 +169,28 @@ class RCControllerProfile(CommandProfile):
 
         # GENERATE PATH
         # [x_vel_cmd, y_vel_cmd, yaw_vel_cmd] = self.path.generate_trapezoid(v_x=0.4, v_y=round(random.uniform(0.1, 0.5), 10), v_omega=0.0, acc_ratio=0.5)
-        [x_vel_cmd, y_vel_cmd, yaw_vel_cmd] = self.path.generate_symmetric_ramp(v_x=0.5)
+        # [x_vel_cmd, y_vel_cmd, yaw_vel_cmd] = self.path.generate_symmetric_ramp(v_x=0.5)
         # [x_vel_cmd, y_vel_cmd, yaw_vel_cmd] = self.path.generate_circle_omni(radius=round(random.uniform(0.5, 1), 10), clockwise=True)
         # [x_vel_cmd, y_vel_cmd, yaw_vel_cmd] = self.path.generate_circle_forward(radius=0.7, linear_speed=0.7, clockwise=False)
         # [x_vel_cmd, y_vel_cmd, yaw_vel_cmd] = self.path.generate_circle_forward(radius=round(random.uniform(0.4, 0.8), 10), linear_speed=round(random.uniform(0.5, 1.2), 10), clockwise=False)
 
-        
-        command[0] = x_vel_cmd
-        command[1] = y_vel_cmd
-        command[2] = yaw_vel_cmd
-        command[3] = 0.25
-        command[4] = 3.0
-        # env.commands[5:8] = gait
-        # env.commands[8] = 0.5
-        # env.commands[9] = footswing_height_cmd
-        command[10] = -0.1745
-        # env.commands[11] = roll_cmd
-        # env.commands[12] = stance_width_cmd
+        # For offline data collection
+        #command[0] = x_vel_cmd
+        #command[1] = y_vel_cmd
+        #command[2] = yaw_vel_cmd
+        #command[3] = 0.25
+        #command[4] = 3.0
+        ##commands[5:8] = gait
+        ##commands[8] = 0.5
+        ##commands[9] = footswing_height_cmd
+        #command[10] = -0.1745
+        ##commands[11] = roll_cmd
+        ##commands[12] = stance_width_cmd
 
-        ## command[1] = 0.0 # y
-        ## command[2] = 0.0 # yaw
-        ## command[3] = 0.1 # height
+        # for offline policy eval
+	command[0] = 0.3 # x
+        command[1] = 0.0 # y
+        command[2] = 0.0 # yaw
         ## command[4] = 3.0 # freq
         ## command[10] = 0.1745 # 10 deg UP front
         return command, reset_timer
