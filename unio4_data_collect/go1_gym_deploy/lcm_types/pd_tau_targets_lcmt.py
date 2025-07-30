@@ -9,24 +9,24 @@ except ImportError:
     from io import BytesIO
 import struct
 
-
 class pd_tau_targets_lcmt(object):
-    __slots__ = ["q_des", "qd_des", "tau_ff", "kp", "kd", "timestamp_us", "id", "robot_id", "se_contactState"]
+    __slots__ = ["q_des", "qd_des", "tau_ff", "kp", "kd", "timestamp_us", "id", "robot_id", "calibrated", "se_contactState"]
 
-    __typenames__ = ["double", "double", "double", "double", "double", "int64_t", "int64_t", "int64_t", "double"]
+    __typenames__ = ["double", "double", "double", "double", "double", "int64_t", "int64_t", "int64_t", "boolean", "double"]
 
-    __dimensions__ = [[12], [12], [12], [12], [12], None, None, None, [4]]
+    __dimensions__ = [[12], [12], [12], [12], [12], None, None, None, None, [4]]
 
     def __init__(self):
-        self.q_des = [0.0 for dim0 in range(12)]
-        self.qd_des = [0.0 for dim0 in range(12)]
-        self.tau_ff = [0.0 for dim0 in range(12)]
-        self.kp = [0.0 for dim0 in range(12)]
-        self.kd = [0.0 for dim0 in range(12)]
+        self.q_des = [ 0.0 for dim0 in range(12) ]
+        self.qd_des = [ 0.0 for dim0 in range(12) ]
+        self.tau_ff = [ 0.0 for dim0 in range(12) ]
+        self.kp = [ 0.0 for dim0 in range(12) ]
+        self.kd = [ 0.0 for dim0 in range(12) ]
         self.timestamp_us = 0
         self.id = 0
         self.robot_id = 0
-        self.se_contactState = [0.0 for dim0 in range(4)]
+        self.calibrated = False
+        self.se_contactState = [ 0.0 for dim0 in range(4) ]
 
     def encode(self):
         buf = BytesIO()
@@ -40,7 +40,7 @@ class pd_tau_targets_lcmt(object):
         buf.write(struct.pack('>12d', *self.tau_ff[:12]))
         buf.write(struct.pack('>12d', *self.kp[:12]))
         buf.write(struct.pack('>12d', *self.kd[:12]))
-        buf.write(struct.pack(">qqq", self.timestamp_us, self.id, self.robot_id))
+        buf.write(struct.pack(">qqqb", self.timestamp_us, self.id, self.robot_id, self.calibrated))
         buf.write(struct.pack('>4d', *self.se_contactState[:4]))
 
     def decode(data):
@@ -51,7 +51,6 @@ class pd_tau_targets_lcmt(object):
         if buf.read(8) != pd_tau_targets_lcmt._get_packed_fingerprint():
             raise ValueError("Decode error")
         return pd_tau_targets_lcmt._decode_one(buf)
-
     decode = staticmethod(decode)
 
     def _decode_one(buf):
@@ -62,17 +61,16 @@ class pd_tau_targets_lcmt(object):
         self.kp = struct.unpack('>12d', buf.read(96))
         self.kd = struct.unpack('>12d', buf.read(96))
         self.timestamp_us, self.id, self.robot_id = struct.unpack(">qqq", buf.read(24))
+        self.calibrated = bool(struct.unpack('b', buf.read(1))[0])
         self.se_contactState = struct.unpack('>4d', buf.read(32))
         return self
-
     _decode_one = staticmethod(_decode_one)
 
     def _get_hash_recursive(parents):
         if pd_tau_targets_lcmt in parents: return 0
-        tmphash = (0x6d88128ef1291cc1) & 0xffffffffffffffff
-        tmphash = (((tmphash << 1) & 0xffffffffffffffff) + (tmphash >> 63)) & 0xffffffffffffffff
+        tmphash = (0x64ace3b7fa708018) & 0xffffffffffffffff
+        tmphash  = (((tmphash<<1)&0xffffffffffffffff) + (tmphash>>63)) & 0xffffffffffffffff
         return tmphash
-
     _get_hash_recursive = staticmethod(_get_hash_recursive)
     _packed_fingerprint = None
 
@@ -80,9 +78,9 @@ class pd_tau_targets_lcmt(object):
         if pd_tau_targets_lcmt._packed_fingerprint is None:
             pd_tau_targets_lcmt._packed_fingerprint = struct.pack(">Q", pd_tau_targets_lcmt._get_hash_recursive([]))
         return pd_tau_targets_lcmt._packed_fingerprint
-
     _get_packed_fingerprint = staticmethod(_get_packed_fingerprint)
 
     def get_hash(self):
         """Get the LCM hash of the struct"""
         return struct.unpack(">Q", pd_tau_targets_lcmt._get_packed_fingerprint())[0]
+
