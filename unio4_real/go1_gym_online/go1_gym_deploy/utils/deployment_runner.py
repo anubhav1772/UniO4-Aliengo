@@ -190,8 +190,8 @@ class DeploymentRunner:
                 while self.hdf5_recorder.count < max_steps:
                     done = False
 
-                    # if count != 0:
-                    control_obs = self.calibrate(wait=False, low=True)
+                    if count != 0:
+                        control_obs = self.calibrate(wait=False, low=True)
                     obs_record = control_obs["obs"][0,:].detach().cpu().numpy().tolist()
                     history_obs = control_obs["obs_history"][0,:].detach().cpu().numpy()
                     
