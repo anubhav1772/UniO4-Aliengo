@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from tensorboardX import SummaryWriter
+# from tensorboardX import SummaryWriter
 import gym
 import argparse
 from normalization import Normalization, RewardScaling
@@ -14,6 +14,9 @@ from collections import deque
 from buffer import OfflineReplayBuffer
 from go1_gym_online.go1_gym_deploy.scripts.deploy_policy import run_sample
 
+from torch.utils.tensorboard import SummaryWriter
+from datetime import datetime
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("Hyperparameters Setting for PPO")
     parser.add_argument("--max_train_steps", type=int, default=int(1e6), help=" Maximum number of training steps")
@@ -25,7 +28,7 @@ if __name__ == '__main__':
     parser.add_argument("--pi_hidden_dim", type=int, default=[512, 256, 128], help="The number of neurons in hidden layers of the neural network")
     parser.add_argument("--v_hidden_dim", type=int, default=512, help="The number of neurons in hidden layers of the neural network")
     
-    parser.add_argument("--depth", type=int, default=2, help="The number of layer in MLP")
+    parser.add_argument("--depth", type=int, default=3, help="The number of layer in MLP")
     parser.add_argument("--lr_a", type=float, default=2e-5, help="Learning rate of actor")
     parser.add_argument("--lr_c", type=float, default=2e-4, help="Learning rate of critic")
     parser.add_argument("--gamma", type=float, default=0.99, help="Discount factor")
@@ -96,7 +99,7 @@ if __name__ == '__main__':
 
     evaluate_num = 0  # Record the number of evaluations
     evaluate_rewards = []  # Record the rewards during the evaluating
-    total_steps = 0  # Record the total steps during the training
+    total_steps = 22528  # Record the total steps during the training
     if args.use_reward_scaling:
         buffer_save_path = os.path.join('dataset_{}.pt'.format(args.date))
         dataset = torch.load(buffer_save_path)
@@ -127,21 +130,39 @@ if __name__ == '__main__':
     grad_steps = int(args.max_train_steps / args.batch_size)
     print(grad_steps)
 
+    # Tensorboard log dir
+    # log_dirs = f"runs/tensorboard/{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    # print(log_dirs)
+    # os.makedirs(log_dirs, exist_ok=True)
+    log_dirs = "runs/tensorboard/20250812_172115"
+    tensorboard_writer = SummaryWriter(log_dir=log_dirs)
+
     with tqdm(total=grad_steps) as pbar:
-        iterations = 0
+        iterations = 11
         while total_steps < args.max_train_steps:
 
             print(f"################ {iterations} ##################")
 
             total_steps += args.batch_size
+            # dist.mean removes stochastic noise in the command signal, thereby the gait stays smooth.
+            # Deterministic actions (policy mean) keep the base gait smooth while still allowing gradient updates from the environment.
+            # Fine-tuning with small deviations from a working gait is more sample-efficient than re-learning from scratch.
+            # Deterministic sampling ensures that deviations in behavior are due to learned changes in the policy parameters, not just action noise.
             deployment_runner.add_policy(agent.actor.sample_a_logprob)
             replay_buffer = deployment_runner.run(max_steps=args.max_episode_steps, logging=True)
             episode_reward = replay_buffer.compute_reward(reward_scaling)
-            print('episode reward', episode_reward)
+            print('episode reward', episode_reward)           
             episode_rewards.append(episode_reward)
             actor_loss, critic_loss = agent.update(replay_buffer, total_steps)
             actor_losses.append(actor_loss)
             critic_losses.append(critic_loss)
+
+            # Tracking immediate progress
+            tensorboard_writer.add_scalar("Reward/Episode", episode_reward, (iterations+1))
+            tensorboard_writer.add_scalar("Steps/Total", total_steps, (iterations+1))
+            tensorboard_writer.add_scalar("Loss/Actor", actor_loss, (iterations+1))
+            tensorboard_writer.add_scalar("Loss/Critic", critic_loss, (iterations+1))
+
             replay_buffer._reset_data()
             replay_buffer.count = 0
             agent.save_pi_value('{}/pi_latest.pt'.format(file), '{}/value_latest.pt'.format(file))
@@ -153,7 +174,13 @@ if __name__ == '__main__':
             print("evaluate_num:{} \t evaluate_reward:{}".format(iterations, np.mean(episode_rewards[int(-args.evaluate_freq):])))
             print('actor_loss: {}, critic_loss: {}'.format(np.mean(actor_losses[int(-args.evaluate_freq):]), np.mean(critic_losses[int(-args.evaluate_freq):])))
 
+            # Tracking long-term performance and evaluating the stability of the agent across several episodes
+            # Mean reward of the last `args.evaluate_freq` episodes from the episode_rewards list
+            # args.evaluate_freq = 2
+            tensorboard_writer.add_scalar("Mean Reward (over last 2 episodes)", np.mean(episode_rewards[int(-args.evaluate_freq):]), iterations)
+            tensorboard_writer.add_scalar("Mean Loss/Actor (over last 2 episodes)", np.mean(actor_losses[int(-args.evaluate_freq):]), iterations)
+            tensorboard_writer.add_scalar("Mean Loss/Critic (over last 2 episodes)", np.mean(critic_losses[int(-args.evaluate_freq):]), iterations)
+
         if total_steps % args.evaluate_freq == 0:
                 evaluate_num += 1
                 # evaluate_rewards.append(evaluate_reward)
-                
