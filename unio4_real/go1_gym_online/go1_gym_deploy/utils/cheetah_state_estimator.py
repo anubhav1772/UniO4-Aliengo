@@ -144,27 +144,14 @@ class StateEstimator:
 
     def get_rpy(self):
         return self.euler
-
+    
     def get_command(self):
-        MODES_LEFT = ["lat_vel", "body_height", "stance_width"]
-        MODES_RIGHT = ["footswing_height", "step_frequency", "body_pitch"]
-
-        if self.left_upper_switch_pressed:
-            self.ctrlmode_left = (self.ctrlmode_left + 1) % 3
-            self.left_upper_switch_pressed = False
-        if self.right_upper_switch_pressed:
-            self.ctrlmode_right = (self.ctrlmode_right + 1) % 3
-            self.right_upper_switch_pressed = False
-
-        MODE_LEFT = MODES_LEFT[self.ctrlmode_left]
-        MODE_RIGHT = MODES_RIGHT[self.ctrlmode_right]
-
         # always in use
         cmd_x = 1 * self.left_stick[1]
         cmd_yaw = -1 * self.right_stick[0]
 
         # default values
-        cmd_y = 0.  # -1 * self.left_stick[0]
+        cmd_y = 0.6 * self.left_stick[0]
         cmd_height = 0.
         cmd_footswing = 0.08
         cmd_stance_width = 0.33
@@ -173,52 +160,91 @@ class StateEstimator:
         cmd_ori_roll = 0.
         cmd_freq = 3.0
 
-        # joystick commands
-        if MODE_LEFT == "body_height":
-            cmd_height = 0.3 * self.left_stick[0]
-        elif MODE_LEFT == "lat_vel":
-            cmd_y = 0.6 * self.left_stick[0]
-        elif MODE_LEFT == "stance_width":
-            cmd_stance_width = 0.275 + 0.175 * self.left_stick[0]
-        if MODE_RIGHT == "step_frequency":
-            min_freq = 2.0
-            max_freq = 4.0
-            cmd_freq = (1 + self.right_stick[1]) / 2 * (max_freq - min_freq) + min_freq
-        elif MODE_RIGHT == "footswing_height":
-            cmd_footswing = max(0, self.right_stick[1]) * 0.32 + 0.03
-        elif MODE_RIGHT == "body_pitch":
-            cmd_ori_pitch = -0.4 * self.right_stick[1]
-
         # gait buttons
-        if self.mode == 0:
-            self.cmd_phase = 0.5
-            self.cmd_offset = 0.0
-            self.cmd_bound = 0.0
-            self.cmd_duration = 0.5
-        elif self.mode == 1:
-            self.cmd_phase = 0.0
-            self.cmd_offset = 0.0
-            self.cmd_bound = 0.0
-            self.cmd_duration = 0.5
-        elif self.mode == 2:
-            self.cmd_phase = 0.0
-            self.cmd_offset = 0.5
-            self.cmd_bound = 0.0
-            self.cmd_duration = 0.5
-        elif self.mode == 3:
-            self.cmd_phase = 0.0
-            self.cmd_offset = 0.0
-            self.cmd_bound = 0.5
-            self.cmd_duration = 0.5
-        else:
-            self.cmd_phase = 0.5
-            self.cmd_offset = 0.0
-            self.cmd_bound = 0.0
-            self.cmd_duration = 0.5
+        self.cmd_phase = 0.5
+        self.cmd_offset = 0.0
+        self.cmd_bound = 0.0
+        self.cmd_duration = 0.5
 
         return np.array([cmd_x, cmd_y, cmd_yaw, cmd_height, cmd_freq, self.cmd_phase, self.cmd_offset, self.cmd_bound,
-                         self.cmd_duration, cmd_footswing, cmd_ori_pitch, cmd_ori_roll, cmd_stance_width,
-                         cmd_stance_length, 0, 0, 0, 0, 0])
+                        self.cmd_duration, cmd_footswing, cmd_ori_pitch, cmd_ori_roll, cmd_stance_width,
+                        cmd_stance_length, 0, 0, 0, 0, 0])
+
+
+    # def get_command(self):
+    #     MODES_LEFT = ["lat_vel", "body_height", "stance_width"]
+    #     MODES_RIGHT = ["footswing_height", "step_frequency", "body_pitch"]
+
+    #     if self.left_upper_switch_pressed:
+    #         self.ctrlmode_left = (self.ctrlmode_left + 1) % 3
+    #         self.left_upper_switch_pressed = False
+    #     if self.right_upper_switch_pressed:
+    #         self.ctrlmode_right = (self.ctrlmode_right + 1) % 3
+    #         self.right_upper_switch_pressed = False
+
+    #     MODE_LEFT = MODES_LEFT[self.ctrlmode_left]
+    #     MODE_RIGHT = MODES_RIGHT[self.ctrlmode_right]
+
+    #     # always in use
+    #     cmd_x = 1 * self.left_stick[1]
+    #     cmd_yaw = -1 * self.right_stick[0]
+
+    #     # default values
+    #     cmd_y = 0.  # -1 * self.left_stick[0]
+    #     cmd_height = 0.
+    #     cmd_footswing = 0.08
+    #     cmd_stance_width = 0.33
+    #     cmd_stance_length = 0.40
+    #     cmd_ori_pitch = 0.
+    #     cmd_ori_roll = 0.
+    #     cmd_freq = 3.0
+
+    #     # joystick commands
+    #     if MODE_LEFT == "body_height":
+    #         cmd_height = 0.3 * self.left_stick[0]
+    #     elif MODE_LEFT == "lat_vel":
+    #         cmd_y = 0.6 * self.left_stick[0]
+    #     elif MODE_LEFT == "stance_width":
+    #         cmd_stance_width = 0.275 + 0.175 * self.left_stick[0]
+    #     if MODE_RIGHT == "step_frequency":
+    #         min_freq = 2.0
+    #         max_freq = 4.0
+    #         cmd_freq = (1 + self.right_stick[1]) / 2 * (max_freq - min_freq) + min_freq
+    #     elif MODE_RIGHT == "footswing_height":
+    #         cmd_footswing = max(0, self.right_stick[1]) * 0.32 + 0.03
+    #     elif MODE_RIGHT == "body_pitch":
+    #         cmd_ori_pitch = -0.4 * self.right_stick[1]
+
+    #     # gait buttons
+    #     if self.mode == 0:
+    #         self.cmd_phase = 0.5
+    #         self.cmd_offset = 0.0
+    #         self.cmd_bound = 0.0
+    #         self.cmd_duration = 0.5
+    #     elif self.mode == 1:
+    #         self.cmd_phase = 0.0
+    #         self.cmd_offset = 0.0
+    #         self.cmd_bound = 0.0
+    #         self.cmd_duration = 0.5
+    #     elif self.mode == 2:
+    #         self.cmd_phase = 0.0
+    #         self.cmd_offset = 0.5
+    #         self.cmd_bound = 0.0
+    #         self.cmd_duration = 0.5
+    #     elif self.mode == 3:
+    #         self.cmd_phase = 0.0
+    #         self.cmd_offset = 0.0
+    #         self.cmd_bound = 0.5
+    #         self.cmd_duration = 0.5
+    #     else:
+    #         self.cmd_phase = 0.5
+    #         self.cmd_offset = 0.0
+    #         self.cmd_bound = 0.0
+    #         self.cmd_duration = 0.5
+
+    #     return np.array([cmd_x, cmd_y, cmd_yaw, cmd_height, cmd_freq, self.cmd_phase, self.cmd_offset, self.cmd_bound,
+    #                      self.cmd_duration, cmd_footswing, cmd_ori_pitch, cmd_ori_roll, cmd_stance_width,
+    #                      cmd_stance_length, 0, 0, 0, 0, 0])
 
     def get_buttons(self):
         return np.array([self.left_lower_left_switch, self.left_upper_switch, self.right_lower_right_switch, self.right_upper_switch])
@@ -404,3 +430,4 @@ if __name__ == "__main__":
     lc = lcm.LCM("udpm://239.255.76.67:7667?ttl=255")
     se = StateEstimator(lc)
     se.poll()
+
