@@ -91,6 +91,8 @@ public:
     float record_state(float data, int scale);
     float record_action(float data);
 
+    bool processBoolean(int8_t value);
+
     Safety safe;
     UDP udp;
     LowCmd cmd = {0};
@@ -146,7 +148,7 @@ void Custom::handleMessageLCM(const lcm::ReceiveBuffer* rbuf, const std::string&
     {
         gravity.push_back(msg->gravity[i]);
     }
-    cout << "Received Gravity Vector: [" << gravity[0] << ", " << gravity[1] << ", " << gravity[2] << "]" << std::endl;
+    // cout << "Received Gravity Vector: [" << gravity[0] << ", " << gravity[1] << ", " << gravity[2] << "]" << std::endl;
 
     for(int i=0; i<18; i++)
     {
@@ -159,7 +161,7 @@ void Custom::handleMessageLCM(const lcm::ReceiveBuffer* rbuf, const std::string&
     //         std::cout << ", ";
     //     }
     // }
-    //std::cout << "]" << std::endl;
+    // std::cout << "]" << std::endl;
 }
 
 void Custom::init()
@@ -183,7 +185,7 @@ void Custom::init()
 
         joint_command_simple.qd_des[i] = 0;
         joint_command_simple.tau_ff[i] = 0;
-        joint_command_simple.kp[i] = 50.0;
+        joint_command_simple.kp[i] = 30.0;
         joint_command_simple.kd[i] = 0.8;
     }
 
@@ -200,12 +202,13 @@ void Custom::init()
     joint_command_simple.q_des[10] = 1.2;
     joint_command_simple.q_des[11] = -2.721;
 
+    joint_command_simple.calibrated = 0;
+
     printf("SET NOMINAL POSE");
 }
 
 void Custom::UDPRecv()
 {
-    // printf("UDP RECEIVED");   
     udp.Recv();
 }
 
@@ -252,6 +255,11 @@ float Custom::record_action(float data)
     return data;
 }
 
+bool Custom::processBoolean(int8_t value) {
+    bool booleanValue = (value != 0);
+    return booleanValue;
+}
+
 void Custom::RobotControl()
 {
     states_step.clear();
@@ -262,7 +270,7 @@ void Custom::RobotControl()
     memcpy(&_keyData, &state.wirelessRemote[0], 40);
     if (_keyData.btn.components.R1 && !rc_command.right_upper_switch)
     {
-        std::cout<<"Pressed"<<std::endl;
+        // std::cout<<"Pressed"<<std::endl;
         HDF5Recorder.new_episode();
         // right_upper_switch_pressed = false;
     }
@@ -270,8 +278,8 @@ void Custom::RobotControl()
     rc_command.left_stick[1] = record_state(_keyData.ly)/3.5;//x speed
     // std::cout<<"cmd x:"<<_keyData.ly<<"   "<<"cmd y:"<<_keyData.lx<<std::endl;
     // std::cout<<"cmd x2:"<<record_state(_keyData.ly)<<"   "<<"cmd y2:"<<record_state(_keyData.lx)<<std::endl;
-    rc_command.right_stick[0] = record_state(_keyData.rx, -1)/5.0;//yaw speed
-    rc_command.right_stick[1] = record_state(_keyData.ry);//z speed
+    rc_command.right_stick[1] = record_state(_keyData.rx, -1)/5.0;//yaw speed
+    rc_command.right_stick[0] = record_state(_keyData.ry);//z speed
     rc_command.right_lower_right_switch = _keyData.btn.components.R2;
     rc_command.right_upper_switch = _keyData.btn.components.R1;
     rc_command.left_lower_left_switch = _keyData.btn.components.L2;
@@ -314,7 +322,6 @@ void Custom::RobotControl()
     rc_command.mode = mode;
 
     // publish state to LCM
-    //cout<<"Motor Position State: ";
     for(int i = 0; i < 12; i++)
     {
         // joint_state_simple.q[i] = state.motorState[i].q;
@@ -322,7 +329,6 @@ void Custom::RobotControl()
         // joint_state_simple.tau_est[i] = state.motorState[i].tauEst;
 
         joint_state_simple.q[i] = record_state(state.motorState[i].q);
-        //cout<<state.motorState[i].q<<", ";
     }
 
     for(int i = 0; i < 12; i++)
@@ -330,8 +336,6 @@ void Custom::RobotControl()
         joint_state_simple.qd[i] = record_state(state.motorState[i].dq);
         joint_state_simple.tau_est[i] = state.motorState[i].tauEst;
     }
-
-    
     
     // record_action(state.motorState[i].tauEst);
     
@@ -341,23 +345,11 @@ void Custom::RobotControl()
     }
 
     for(int i = 0; i < 3; i++)
-    {  
+    {
         body_state_simple.rpy[i] = record_state(state.imu.rpy[i]);
-        //cout<<body_state_simple.rpy[i]<<" ";
         body_state_simple.aBody[i] = record_state(state.imu.accelerometer[i]);
         body_state_simple.omegaBody[i] = record_state(state.imu.gyroscope[i]);
     }
-
-    std::vector<float>  gra = compute_gravity_vector(body_state_simple.rpy[0], body_state_simple.rpy[1], body_state_simple.rpy[2]);
-    //cout<<"[ RPY: "<<body_state_simple.rpy[0]<<", "<<body_state_simple.rpy[1]<<", "<<body_state_simple.rpy[2]<<" ]"<<endl;
-    cout<<"[ gravity FROM State IMU: "<<gra[0]<<", "<<gra[1]<<", "<<gra[2]<<" ]"<<endl;
-
-
-    // cout<<"[ quat IMU: "<<body_state_simple.quat[0]<<", "<<body_state_simple.quat[1]<<", "<<body_state_simple.quat[2]<<", "<<body_state_simple.quat[3]<<" ]"<<endl;
-    // cout<<"[ rpy IMU: "<<state.imu.rpy[0]<<", "<<state.imu.rpy[1]<<", "<<state.imu.rpy[2]<<" ]"<<endl;
-    // cout<<"[ accelerometer IMU: "<<state.imu.accelerometer[0]<<", "<<state.imu.accelerometer[1]<<", "<<state.imu.accelerometer[2]<<" ]"<<endl;
-    // cout<<"[ gyroscope IMU: "<<state.imu.gyroscope[0]<<", "<<state.imu.gyroscope[1]<<", "<<state.imu.gyroscope[2]<<" ]"<<endl;
-
 
     for(int i = 0; i < 4; i++)
     {
@@ -385,6 +377,7 @@ void Custom::RobotControl()
             states_step.push_back(steps[i]);
             camera_state.data[i] = steps[i];
         }
+        cout << "steps: " << steps[2] <<" "<< steps[9];
     }
     
     if (gravity.size()==3)
@@ -393,16 +386,16 @@ void Custom::RobotControl()
         record_state(gravity[1]);
         record_state(gravity[2]);
         for (int i = 0; i < 3; i++) {
+            
             camera_state.gravity[i] = gravity[i];
         }
-
-        //cout<<"Gravity: [ "<<gravity[0]<<", "<<gravity[1]<<", "<<gravity[2]<<" ]"<<endl;
+        cout << " gravity: " << gravity[0];
     }
 
     _simpleLCM.publish("state_estimator_data", &body_state_simple);
     _simpleLCM.publish("leg_control_data", &joint_state_simple);
     _simpleLCM.publish("rc_command", &rc_command);
-    _simpleLCM.publish("camera_state_python", &camera_state);
+    _simpleLCM.publish("camera_python", &camera_state);
 
     if(_firstRun && joint_state_simple.q[0] != 0)
     {
@@ -418,74 +411,52 @@ void Custom::RobotControl()
         record_action(joint_command_simple.qd_des[i]);
     }
 
-    // cout << "Torque: [ ";
-    // for(int i = 0; i < 12; i++)
-    // {
-    //     cmd.motorCmd[i].q = record_action(joint_command_simple.q_des[i]);
-    //     // cmd.motorCmd[i].dq = joint_command_simple.qd_des[i];
-    //     cmd.motorCmd[i].dq = 0;
-    //     cmd.motorCmd[i].Kp = joint_command_simple.kp[i];
-    //     cmd.motorCmd[i].Kd = joint_command_simple.kd[i];
-    //     cmd.motorCmd[i].tau = joint_command_simple.tau_ff[i];
-
-    //     // cout<< cmd.motorCmd[i].tau << ", ";
-    //     cout<< state.motorState[i].tauEst << ", ";
-    // }
-    // cout<< "]";
-
-    //cout<<"####################################"<<endl;
     for(int i = 0; i < 12; i++){
        
-       /** Torque Mode*/ 
+        /*Torque Mode*/ 
 
         // cmd.motorCmd[i].mode = 1;
-        cmd.motorCmd[i].q = PosStopF; // 2.146E+9f
-        cmd.motorCmd[i].dq = VelStopF; // 16000.0f
-        cmd.motorCmd[i].Kp = 0;
-        cmd.motorCmd[i].Kd = 0;
-        float torque = (record_action(joint_command_simple.q_des[i]) - state.motorState[i].q) * joint_command_simple.kp[i] + (0 - state.motorState[i].dq) * joint_command_simple.kd[i] + joint_command_simple.tau_ff[i];
-        if (torque > MAX_TORQUE)
-            torque = MAX_TORQUE;
-        if (torque < -MAX_TORQUE)
-            torque = -MAX_TORQUE;
-        //cout<<torque<<" ";
-        // cmd.motorCmd[i].tau = torque;
+        cmd.motorCmd[i].q = record_action(joint_command_simple.q_des[i]); // 2.146E+9f
+        cmd.motorCmd[i].dq = 0; // 16000.0f
+        cmd.motorCmd[i].Kp = joint_command_simple.kp[i];
+        cmd.motorCmd[i].Kd = joint_command_simple.kd[i];
         cmd.motorCmd[i].tau = 0;
+
+        //cout << joint_command_simple.q_des[i] << ",";
     }
-    //cout<<endl;
-    // for(int i=0;i<12;i++)
-    // {
-    //     cout<< "Desired: " << joint_command_simple.q_des[i]<<" <-  "<<" Current: "<<state.motorState[i].q<<" ";
-    // }
-    // cout<<endl;
+    //ccout<<endl;
     
-    // cout<<"####################################"<<endl;
+    // if(!processBoolean(joint_command_simple.calibrated))
+    // {
+    //     safe.PositionLimit(cmd);
+    //     // int res1 = safe.PowerProtect(cmd, state, 9);
+    //     safe.PowerProtect(cmd, state, 9);
+        
+    //     udp.SetSend(cmd);
+    // }
 
     safe.PositionLimit(cmd);
-    // int res1 = safe.PowerProtect(cmd, state, 9);
     safe.PowerProtect(cmd, state, 9);
-    
+        
     udp.SetSend(cmd);
     
-    // if(counter >= 10)
-    // {
-    //     HDF5Recorder.record_step(actions_step, states_step);
-    //     counter = 0;
-    // }
-    // else
-    // {
-    //     counter++;
-    // }
+    if(counter >= 10)
+    {
+        HDF5Recorder.record_step(actions_step, states_step);
+        counter = 0;
+    }
+    else
+    {
+        counter++;
+    }
 
-    /*
-    for(auto vel: states_step){
-        std::cout<<vel<< "  ";
-    }
-    for(int i = 0; i<4; i++){
-        std::cout<<states_step[i]<<"  ";
-    }
-    std::cout<<std::endl;
-    */
+    // for(auto vel: states_step){
+    //     std::cout<<vel<< "  ";
+    // }
+    // for(int i = 0; i<4; i++){
+    //     std::cout<<states_step[i]<<"  ";
+    // }
+    // std::cout<<std::endl;
 }
 
 
