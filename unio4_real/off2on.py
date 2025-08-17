@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+import math
 # from tensorboardX import SummaryWriter
 import gym
 import argparse
@@ -60,7 +61,10 @@ if __name__ == '__main__':
     parser.add_argument("--scale_strategy", default='dynamic', type=str, help='reward scaling technique: dynamic/normal/number(0.1)')
     parser.add_argument("--from_scratch", default=False, type=bool, help='training from the initial policy (offline finetuned) of the checkpoints or latest training')
     parser.add_argument("--date", default='0808', type=str, help='reward scaling technique: dynamic/normal/number(0.1)')
+    parser.add_argument("--num_eval_episodes", default=5, type=int, help='the number of evaluation episodes')
+    
     args = parser.parse_args()
+    
     if args.scale_strategy == 'dynamic':
         args.use_reward_scaling = True
         args.r_scale = 1.
@@ -99,7 +103,7 @@ if __name__ == '__main__':
 
     evaluate_num = 0  # Record the number of evaluations
     evaluate_rewards = []  # Record the rewards during the evaluating
-    total_steps = 22528  # Record the total steps during the training
+    total_steps = 116736  # Record the total steps during the training
     if args.use_reward_scaling:
         buffer_save_path = os.path.join('dataset_{}.pt'.format(args.date))
         dataset = torch.load(buffer_save_path)
@@ -137,50 +141,215 @@ if __name__ == '__main__':
     log_dirs = "runs/tensorboard/20250812_172115"
     tensorboard_writer = SummaryWriter(log_dir=log_dirs)
 
+    # Constant decay rate
+    # decay_rate = 0.0005   # try tuning (larger = faster decay)
+    # Adaptive decay rate
+    epsilon = 0.01
+    max_iterations = args.max_train_steps // args.batch_size
+    decay_rate = -math.log(epsilon) / max_iterations
+    min_exploration = 0.1 
+    
     with tqdm(total=grad_steps) as pbar:
-        iterations = 11
+        iterations = 0
+        
         while total_steps < args.max_train_steps:
 
-            print(f"################ {iterations} ##################")
+        print(f"################ {iterations} ##################")
 
-            total_steps += args.batch_size
-            # dist.mean removes stochastic noise in the command signal, thereby the gait stays smooth.
-            # Deterministic actions (policy mean) keep the base gait smooth while still allowing gradient updates from the environment.
-            # Fine-tuning with small deviations from a working gait is more sample-efficient than re-learning from scratch.
-            # Deterministic sampling ensures that deviations in behavior are due to learned changes in the policy parameters, not just action noise.
+        total_steps += args.batch_size
+
+        # ---- Exploration decay (Linear) ----
+        # Start with 100% stochastic, decay to 10% over training
+        # exploration_prob = max(0.1, 1.0 - iterations / args.max_train_iters)  
+
+        # if np.random.rand() < exploration_prob:
+        #     # Explore: stochastic sampling
+        #     deployment_runner.add_policy(agent.actor.sample_stochastic)
+        # else:
+        #     # Exploit: deterministic greedy sampling
+        #     deployment_runner.add_policy(agent.actor.sample_a_logprob)
+
+        # ---- Exploration decay (exponential) ----
+        # Smoother in practice
+        exploration_prob = min_exploration + (1.0 - min_exploration) * np.exp(-decay_rate * iterations)
+
+        if np.random.rand() < exploration_prob:
+            # Explore (stochastic action)
+            deployment_runner.add_policy(agent.actor.sample_stochastic)
+        else:
+            # Exploit (deterministic action)
             deployment_runner.add_policy(agent.actor.sample_a_logprob)
-            replay_buffer = deployment_runner.run(max_steps=args.max_episode_steps, logging=True)
-            episode_reward = replay_buffer.compute_reward(reward_scaling)
-            print('episode reward', episode_reward)           
-            episode_rewards.append(episode_reward)
-            actor_loss, critic_loss = agent.update(replay_buffer, total_steps)
-            actor_losses.append(actor_loss)
-            critic_losses.append(critic_loss)
 
-            # Tracking immediate progress
-            tensorboard_writer.add_scalar("Reward/Episode", episode_reward, (iterations+1))
-            tensorboard_writer.add_scalar("Steps/Total", total_steps, (iterations+1))
-            tensorboard_writer.add_scalar("Loss/Actor", actor_loss, (iterations+1))
-            tensorboard_writer.add_scalar("Loss/Critic", critic_loss, (iterations+1))
+        # ---- Run rollout ----
+        replay_buffer = deployment_runner.run(max_steps=args.max_episode_steps, logging=True)
+        episode_reward = replay_buffer.compute_reward(reward_scaling)
+        episode_rewards.append(episode_reward)
 
-            replay_buffer._reset_data()
-            replay_buffer.count = 0
-            agent.save_pi_value('{}/pi_latest.pt'.format(file), '{}/value_latest.pt'.format(file))
-            np.savetxt(os.path.join('{}'.format(file), 'best_bppo.csv'), [agent.lr_a_now, agent.lr_c_now], fmt='%f', delimiter=',')
-            if total_steps % args.save_freq == 0:
-                agent.save_pi_value('{}/pi_{}.pt'.format(file, total_steps), '{}/value_{}.pt'.format(file, total_steps))
-            iterations += 1
-            pbar.update(1)
-            print("evaluate_num:{} \t evaluate_reward:{}".format(iterations, np.mean(episode_rewards[int(-args.evaluate_freq):])))
-            print('actor_loss: {}, critic_loss: {}'.format(np.mean(actor_losses[int(-args.evaluate_freq):]), np.mean(critic_losses[int(-args.evaluate_freq):])))
+        # ---- PPO update ----
+        actor_loss, critic_loss = agent.update(replay_buffer, total_steps)
+        actor_losses.append(actor_loss)
+        critic_losses.append(critic_loss)
 
-            # Tracking long-term performance and evaluating the stability of the agent across several episodes
-            # Mean reward of the last `args.evaluate_freq` episodes from the episode_rewards list
-            # args.evaluate_freq = 2
-            tensorboard_writer.add_scalar("Mean Reward (over last 2 episodes)", np.mean(episode_rewards[int(-args.evaluate_freq):]), iterations)
-            tensorboard_writer.add_scalar("Mean Loss/Actor (over last 2 episodes)", np.mean(actor_losses[int(-args.evaluate_freq):]), iterations)
-            tensorboard_writer.add_scalar("Mean Loss/Critic (over last 2 episodes)", np.mean(critic_losses[int(-args.evaluate_freq):]), iterations)
+        # ---- Logging ----
+        tensorboard_writer.add_scalar("Exploration/Probability", exploration_prob, (iterations+1))
+        tensorboard_writer.add_scalar("Reward/Episode", episode_reward, (iterations+1))
+        tensorboard_writer.add_scalar("Steps/Total", total_steps, (iterations+1))
+        tensorboard_writer.add_scalar("Loss/Actor", actor_loss, (iterations+1))
+        tensorboard_writer.add_scalar("Loss/Critic", critic_loss, (iterations+1))
+
+        replay_buffer._reset_data()
+        replay_buffer.count = 0
+
+        # Save models
+        agent.save_pi_value('{}/pi_latest.pt'.format(file), '{}/value_latest.pt'.format(file))
+        np.savetxt(os.path.join(file, 'best_bppo.csv'), [agent.lr_a_now, agent.lr_c_now], fmt='%f', delimiter=',')
+        if total_steps % args.save_freq == 0:
+            agent.save_pi_value('{}/pi_{}.pt'.format(file, total_steps), '{}/value_{}.pt'.format(file, total_steps))
+
+        iterations += 1
+        pbar.update(1)
+
+        # On-policy training rollouts (NOT a true evaluation)
+        print("evaluate_num:{} \t evaluate_reward:{}".format(iterations, np.mean(episode_rewards[int(-args.evaluate_freq):])))
+        print('actor_loss: {}, critic_loss: {}'.format(np.mean(actor_losses[int(-args.evaluate_freq):]), np.mean(critic_losses[int(-args.evaluate_freq):])))
+
+        tensorboard_writer.add_scalar("Mean Reward (over last 2 episodes)", np.mean(episode_rewards[int(-args.evaluate_freq):]), iterations)
+        tensorboard_writer.add_scalar("Mean Loss/Actor (over last 2 episodes)", np.mean(actor_losses[int(-args.evaluate_freq):]), iterations)
+        tensorboard_writer.add_scalar("Mean Loss/Critic (over last 2 episodes)", np.mean(critic_losses[int(-args.evaluate_freq):]), iterations)
 
         if total_steps % args.evaluate_freq == 0:
-                evaluate_num += 1
-                # evaluate_rewards.append(evaluate_reward)
+            evaluate_num += 1
+
+        if (iterations + 1) % (2*args.evaluate_freq + 1) == 0:
+            eval_rewards = []
+            for k in range(args.num_eval_episodes):
+                print(f"################ Evaluation Episode: {k+1} / {args.num_eval_episodes} ##################")
+                # Always exploit (deterministic actions) during eval
+                deployment_runner.add_policy(agent.actor.sample_a_logprob)
+                replay_buffer_eval = deployment_runner.run(max_steps=args.max_episode_steps, logging=False)
+                eval_rewards.append(replay_buffer_eval.compute_reward(reward_scaling))
+            
+            mean_eval_reward = np.mean(eval_rewards)
+
+            # Log eval separately from training
+            tensorboard_writer.add_scalar("Reward/Eval", mean_eval_reward, (iterations+1))
+            print(f"[Eval] Iter {(iterations + 1)}, Mean Eval Reward = {mean_eval_reward:.2f}")
+
+
+    # with tqdm(total=grad_steps) as pbar:
+    #     iterations = 57
+    #     while total_steps < args.max_train_steps:
+
+    #         print(f"################ {iterations} ##################")
+
+    #         total_steps += args.batch_size
+    #         # dist.mean removes stochastic noise in the command signal, thereby the gait stays smooth.
+    #         # Deterministic actions (policy mean) keep the base gait smooth while still allowing gradient updates from the environment.
+    #         # Fine-tuning with small deviations from a working gait is more sample-efficient than re-learning from scratch.
+    #         # Deterministic sampling ensures that deviations in behavior are due to learned changes in the policy parameters, not just action noise.
+    #         deployment_runner.add_policy(agent.actor.sample_a_logprob)
+    #         replay_buffer = deployment_runner.run(max_steps=args.max_episode_steps, logging=True)
+    #         episode_reward = replay_buffer.compute_reward(reward_scaling)
+    #         # print('episode reward', episode_reward)           
+    #         episode_rewards.append(episode_reward)
+    #         actor_loss, critic_loss = agent.update(replay_buffer, total_steps)
+    #         actor_losses.append(actor_loss)
+    #         critic_losses.append(critic_loss)
+
+    #         # Tracking immediate progress
+    #         tensorboard_writer.add_scalar("Reward/Episode", episode_reward, (iterations+1))
+    #         tensorboard_writer.add_scalar("Steps/Total", total_steps, (iterations+1))
+    #         tensorboard_writer.add_scalar("Loss/Actor", actor_loss, (iterations+1))
+    #         tensorboard_writer.add_scalar("Loss/Critic", critic_loss, (iterations+1))
+
+    #         replay_buffer._reset_data()
+    #         replay_buffer.count = 0
+    #         agent.save_pi_value('{}/pi_latest.pt'.format(file), '{}/value_latest.pt'.format(file))
+    #         np.savetxt(os.path.join('{}'.format(file), 'best_bppo.csv'), [agent.lr_a_now, agent.lr_c_now], fmt='%f', delimiter=',')
+    #         if total_steps % args.save_freq == 0:
+    #             agent.save_pi_value('{}/pi_{}.pt'.format(file, total_steps), '{}/value_{}.pt'.format(file, total_steps))
+    #         iterations += 1
+    #         pbar.update(1)
+    #         print("evaluate_num:{} \t evaluate_reward:{}".format(iterations, np.mean(episode_rewards[int(-args.evaluate_freq):])))
+    #         print('actor_loss: {}, critic_loss: {}'.format(np.mean(actor_losses[int(-args.evaluate_freq):]), np.mean(critic_losses[int(-args.evaluate_freq):])))
+
+    #         # Tracking long-term performance and evaluating the stability of the agent across several episodes
+    #         # Mean reward of the last `args.evaluate_freq` episodes from the episode_rewards list
+    #         # args.evaluate_freq = 2
+    #         tensorboard_writer.add_scalar("Mean Reward (over last 2 episodes)", np.mean(episode_rewards[int(-args.evaluate_freq):]), iterations)
+    #         tensorboard_writer.add_scalar("Mean Loss/Actor (over last 2 episodes)", np.mean(actor_losses[int(-args.evaluate_freq):]), iterations)
+    #         tensorboard_writer.add_scalar("Mean Loss/Critic (over last 2 episodes)", np.mean(critic_losses[int(-args.evaluate_freq):]), iterations)
+
+    #     if total_steps % args.evaluate_freq == 0:
+    #             evaluate_num += 1
+    #             # evaluate_rewards.append(evaluate_reward)
+
+
+    # with tqdm(total=grad_steps) as pbar:
+    #     iterations = 0
+    #     while total_steps < args.max_train_steps:
+
+    #         print(f"################ {iterations} ##################")
+
+    #         total_steps += args.batch_size
+
+    #         # Collect rollout with stochastic actions (exploration)
+    #         deployment_runner.add_policy(agent.actor.sample_stochastic)
+    #         replay_buffer = deployment_runner.run(max_steps=args.max_episode_steps, logging=True)
+    #         episode_reward = replay_buffer.compute_reward(reward_scaling)
+    #         # print('episode reward', episode_reward)           
+    #         episode_rewards.append(episode_reward)
+
+    #         # PPO update
+    #         actor_loss, critic_loss = agent.update(replay_buffer, total_steps)
+    #         actor_losses.append(actor_loss)
+    #         critic_losses.append(critic_loss)
+
+    #         # Evaluate with deterministic actions (exploitation)
+    #         deployment_runner.add_policy(agent.actor.sample_a_logprob)
+    #         eval_buffer = deployment_runner.run(max_steps=args.max_episode_steps, logging=False)
+    #         eval_reward = eval_buffer.compute_reward(reward_scaling)
+    #         print('eval reward', eval_reward)
+
+    #         # Tracking immediate progress
+    #         tensorboard_writer.add_scalar("Reward/Episode", episode_reward, iterations + 1)
+    #         tensorboard_writer.add_scalar("Reward/Eval", eval_reward, iterations + 1)
+    #         tensorboard_writer.add_scalar("Steps/Total", total_steps, iterations + 1)
+    #         tensorboard_writer.add_scalar("Loss/Actor", actor_loss, iterations + 1)
+    #         tensorboard_writer.add_scalar("Loss/Critic", critic_loss, iterations + 1)
+
+    #         # Reset buffers
+    #         replay_buffer._reset_data()
+    #         replay_buffer.count = 0
+    #         eval_buffer._reset_data()
+    #         eval_buffer.count = 0
+
+    #         # Save model & learning rates
+    #         agent.save_pi_value(f'{file}/pi_latest.pt', f'{file}/value_latest.pt')
+    #         np.savetxt(os.path.join(file, 'best_bppo.csv'),
+    #                 [agent.lr_a_now, agent.lr_c_now], fmt='%f', delimiter=',')
+
+    #         if total_steps % args.save_freq == 0:
+    #             agent.save_pi_value(f'{file}/pi_{total_steps}.pt',
+    #                                 f'{file}/value_{total_steps}.pt')
+
+    #         iterations += 1
+    #         pbar.update(1)
+
+    #         # Print last-N-episodes stats
+    #         print(f"evaluate_num:{iterations} \t evaluate_reward:{np.mean(episode_rewards[-args.evaluate_freq:])}")
+    #         print(f"actor_loss: {np.mean(actor_losses[-args.evaluate_freq:])}, "
+    #             f"critic_loss: {np.mean(critic_losses[-args.evaluate_freq:])}")
+
+    #         # TensorBoard tracking of rolling average
+    #         tensorboard_writer.add_scalar("Mean Reward (over last 2 episodes)",
+    #                                     np.mean(episode_rewards[-args.evaluate_freq:]), iterations)
+    #         tensorboard_writer.add_scalar("Mean Loss/Actor (over last 2 episodes)",
+    #                                     np.mean(actor_losses[-args.evaluate_freq:]), iterations)
+    #         tensorboard_writer.add_scalar("Mean Loss/Critic (over last 2 episodes)",
+    #                                     np.mean(critic_losses[-args.evaluate_freq:]), iterations)
+
+    #     if total_steps % args.evaluate_freq == 0:
+    #         evaluate_num += 1
+
+                
