@@ -7,11 +7,11 @@ from utils import init, soft_clamp
 from net import ValueMLP, GaussPolicyMLP
 import numpy as np
 import gym
+
 # Trick 8: orthogonal initialization
 def orthogonal_init(layer, gain=1.0):
     nn.init.orthogonal_(layer.weight, gain=gain)
     nn.init.constant_(layer.bias, 0)
-
 
 class PPO():
     def __init__(self, args, device):
@@ -35,7 +35,9 @@ class PPO():
         self.args = args
         self.set_critic_count = 0
 
+        # Actor network
         self.actor = GaussPolicyMLP(args).to(self.device)
+        # Critic network
         self.critic = ValueMLP(args).to(self.device)
 
         if self.set_adam_eps:  # Trick 9: set Adam epsilon=1e-5
@@ -44,6 +46,7 @@ class PPO():
         else:
             self.optimizer_actor = torch.optim.Adam(self.actor.parameters(), lr=self.lr_a)
             self.optimizer_critic = torch.optim.Adam(self.critic.parameters(), lr=self.lr_c)
+    
     def load_pi_value(self, pi_path: str, value_path: str) -> None:
         self.actor.load_state_dict(torch.load(pi_path))
         print('Policy parameters loaded')
@@ -51,12 +54,11 @@ class PPO():
         print('Value parameters loaded')
 
     def save_pi_value(self, pi_path: str, value_path: str) -> None:
-
         torch.save(self.actor.state_dict(), pi_path)
         torch.save(self.critic.state_dict(), value_path)
-
         print('Policy parameters saved')
         print('Value parameters saved')
+
     def set_critic(self, critic):
         if self.set_critic_count == 0:
             self.critic.load_state_dict(critic.critic.state_dict())
@@ -91,9 +93,10 @@ class PPO():
         avg_reward = total_reward / eval_episodes
         d4rl_score = env.get_normalized_score(avg_reward) * 100
         return avg_reward, d4rl_score
+
     def choose_action(self, s):
         s = torch.unsqueeze(torch.tensor(s, dtype=torch.float), 0).to(self.device)
-
+        
         with torch.no_grad():
             dist = self.actor.get_dist(s)
             a = dist.sample()  # Sample the action according to the probability distribution
@@ -106,7 +109,8 @@ class PPO():
         """
             Calculate the advantage using GAE
             'dw=True' means dead or win, there is no next state s'
-            'done=True' represents the terminal of an episode(dead or win or reaching the max_episode_steps). When calculating the adv, if done=True, gae=0
+            'done=True' represents the terminal of an episode(dead or win or reaching the max_episode_steps). 
+            When calculating the adv, if done=True, gae=0
         """
         adv = []
         gae = 0
@@ -161,10 +165,10 @@ class PPO():
                     torch.nn.utils.clip_grad_norm_(self.critic.parameters(), 0.5)
                 self.optimizer_critic.step()
 
-
         if self.use_lr_decay:  # Trick 6:learning rate Decay
             self.lr_decay(total_steps)
         return np.mean(actor_losses), np.mean(critic_losses)
+
     def lr_decay(self, total_steps):
         lr_a_now = self.lr_a * (1 - total_steps / self.max_train_steps)
         lr_c_now = self.lr_c * (1 - total_steps / self.max_train_steps)
@@ -174,3 +178,4 @@ class PPO():
             p['lr'] = lr_a_now
         for p in self.optimizer_critic.param_groups:
             p['lr'] = lr_c_now
+
