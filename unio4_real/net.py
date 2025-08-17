@@ -13,6 +13,7 @@ def soft_clamp(
     x = torch.tanh(x)
     x = low + 0.5 * (high - low) * (x + 1)
     return x
+
 # Trick 8: orthogonal initialization
 def orthogonal_init(layer, gain=1.0):
     nn.init.orthogonal_(layer.weight, gain=gain)
@@ -26,8 +27,6 @@ def MLP(
     activation: int,
     final_activation: str
 ) -> torch.nn.modules.container.Sequential:
-
-
     if activation == 'tanh':
         act_f = nn.Tanh()
     elif activation == 'relu':
@@ -47,10 +46,7 @@ def MLP(
         layers.append(nn.ReLU())
     elif final_activation == 'tanh':
         layers.append(nn.Tanh())
-
     return nn.Sequential(*layers)
-
-
 
 class ValueMLP(nn.Module):
     _net: torch.nn.modules.container.Sequential
@@ -128,11 +124,30 @@ class GaussPolicyMLP(nn.Module):
         return dist
     
     def sample_a_logprob(self, s: torch.Tensor):
-
+        """Deterministic Sampling (Exploitation only)
+        """
         dist = self.get_dist(s=s)
-        a = dist.mean
+        a = dist.mean   # pick the mean (greedy action)
         a_logprob = dist.log_prob(a) 
         return a, a_logprob
+
+    def sample_stochastic(self, s: torch.Tensor):
+        """Stochastic Sampling (Exploration)
+        """
+        dist = self.get_dist(s=s)
+        a = dist.rsample()  # differentiable sample (reparam trick)
+        # .sum(...) is already being performed inside PPO.update(), so we ignore it here
+        a_logprob = dist.log_prob(a)#.sum(dim=-1, keepdim=True)
+        return a, a_logprob
+
+    # def sample_deterministic(self, s: torch.Tensor):
+    #     """Deterministic Sampling
+    #     """
+    #     dist = self.get_dist(s=s)
+    #     a = dist.mean
+    #     a_logprob = dist.log_prob(a).sum(dim=-1, keepdim=True)
+    #     return a, a_logprob
+
     def sample(
         self, s: torch.Tensor
     ):
@@ -146,3 +161,4 @@ class GaussPolicyMLP(nn.Module):
         else:
             mu, log_std = self._net(s).chunk(2, dim=-1)
         return mu
+
