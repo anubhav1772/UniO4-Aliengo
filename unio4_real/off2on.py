@@ -142,9 +142,9 @@ if __name__ == '__main__':
     tensorboard_writer = SummaryWriter(log_dir=log_dirs)
 
     # Constant decay rate
-    # decay_rate = 0.0005   # try tuning (larger = faster decay)
+    # decay_rate = 0.0005   # (larger = faster decay)
     # Adaptive decay rate
-    epsilon = 0.01
+    epsilon = 1e-6
     max_iterations = args.max_train_steps // args.batch_size
     decay_rate = -math.log(epsilon) / max_iterations
     min_exploration = 0.1 
