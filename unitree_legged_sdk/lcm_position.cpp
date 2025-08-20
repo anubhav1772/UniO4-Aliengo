@@ -278,8 +278,8 @@ void Custom::RobotControl()
     rc_command.left_stick[1] = record_state(_keyData.ly)/3.5;//x speed
     // std::cout<<"cmd x:"<<_keyData.ly<<"   "<<"cmd y:"<<_keyData.lx<<std::endl;
     // std::cout<<"cmd x2:"<<record_state(_keyData.ly)<<"   "<<"cmd y2:"<<record_state(_keyData.lx)<<std::endl;
-    rc_command.right_stick[1] = record_state(_keyData.rx, -1)/5.0;//yaw speed
-    rc_command.right_stick[0] = record_state(_keyData.ry);//z speed
+    rc_command.right_stick[1] = record_state(_keyData.ry, -1)/5.0;//yaw speed
+    rc_command.right_stick[0] = record_state(_keyData.rx);//z speed
     rc_command.right_lower_right_switch = _keyData.btn.components.R2;
     rc_command.right_upper_switch = _keyData.btn.components.R1;
     rc_command.left_lower_left_switch = _keyData.btn.components.L2;

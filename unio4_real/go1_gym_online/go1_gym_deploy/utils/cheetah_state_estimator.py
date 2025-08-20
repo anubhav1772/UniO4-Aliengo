@@ -147,10 +147,10 @@ class StateEstimator:
     
     def get_command(self):
         # print(f"LEFT COMMAND: {self.left_stick[0]}, {self.left_stick[1]}")
-        # print(f"RIGHT COMMAND: {self.right_stick[0]}")
+        # print(f"RIGHT COMMAND: {self.right_stick[1]}")
         # always in use
         cmd_x = 2 * self.left_stick[1] # prev scale was 1
-        cmd_yaw = -1.5 * self.right_stick[1] # check right_stick index in lcm_position.cpp
+        cmd_yaw = -1.5 * self.right_stick[0] # check right_stick index in lcm_position.cpp
 
         # default values
         cmd_y = 0.6 * self.left_stick[0]
