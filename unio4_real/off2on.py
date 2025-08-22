@@ -20,8 +20,8 @@ from datetime import datetime
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("Hyperparameters Setting for PPO")
-    parser.add_argument("--max_train_steps", type=int, default=int(1e6), help=" Maximum number of training steps")
-    parser.add_argument("--evaluate_freq", type=int, default=2, help="Evaluate the policy every 'evaluate_freq' steps")
+    parser.add_argument("--max_train_steps", type=int, default=int(2e5), help=" Maximum number of training steps")
+    parser.add_argument("--evaluate_freq", type=int, default=3, help="Evaluate the policy every 'evaluate_freq' steps")
     parser.add_argument("--save_freq", type=int, default=20, help="Save frequency")
     parser.add_argument("--policy_dist", type=str, default="Gaussian", help="Beta or Gaussian")
     parser.add_argument("--batch_size", type=int, default=2048, help="Batch size")
@@ -103,7 +103,7 @@ if __name__ == '__main__':
 
     evaluate_num = 0  # Record the number of evaluations
     evaluate_rewards = []  # Record the rewards during the evaluating
-    total_steps = 116736  # Record the total steps during the training
+    total_steps = 0  # Record the total steps during the training
     if args.use_reward_scaling:
         buffer_save_path = os.path.join('dataset_{}.pt'.format(args.date))
         dataset = torch.load(buffer_save_path)
@@ -138,102 +138,104 @@ if __name__ == '__main__':
     # log_dirs = f"runs/tensorboard/{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     # print(log_dirs)
     # os.makedirs(log_dirs, exist_ok=True)
-    log_dirs = "runs/tensorboard/20250812_172115"
+    log_dirs = "runs/tensorboard/20250821_170320"
     tensorboard_writer = SummaryWriter(log_dir=log_dirs)
 
     # Constant decay rate
     # decay_rate = 0.0005   # (larger = faster decay)
     # Adaptive decay rate
-    epsilon = 1e-6
-    max_iterations = args.max_train_steps // args.batch_size
-    decay_rate = -math.log(epsilon) / max_iterations
-    min_exploration = 0.1 
+    # epsilon = 1e-6
+    # max_iterations = args.max_train_steps // args.batch_size
+    # decay_rate = -math.log(epsilon) / max_iterations
+    # min_exploration = 0.1 
     
     with tqdm(total=grad_steps) as pbar:
         iterations = 0
         
         while total_steps < args.max_train_steps:
 
-        print(f"################ {iterations} ##################")
+            print(f"################ {iterations} ##################")
 
-        total_steps += args.batch_size
+            total_steps += args.batch_size
 
-        # ---- Exploration decay (Linear) ----
-        # Start with 100% stochastic, decay to 10% over training
-        # exploration_prob = max(0.1, 1.0 - iterations / args.max_train_iters)  
+            # ---- Exploration decay (Linear) ----
+            # Start with 100% stochastic, decay to 10% over training
+            # exploration_prob = max(0.1, 1.0 - iterations / args.max_train_iters)  
 
-        # if np.random.rand() < exploration_prob:
-        #     # Explore: stochastic sampling
-        #     deployment_runner.add_policy(agent.actor.sample_stochastic)
-        # else:
-        #     # Exploit: deterministic greedy sampling
-        #     deployment_runner.add_policy(agent.actor.sample_a_logprob)
+            # if np.random.rand() < exploration_prob:
+            #     # Explore: stochastic sampling
+            #     deployment_runner.add_policy(agent.actor.sample_stochastic)
+            # else:
+            #     # Exploit: deterministic greedy sampling
+            #     deployment_runner.add_policy(agent.actor.sample_a_logprob)
 
-        # ---- Exploration decay (exponential) ----
-        # Smoother in practice
-        exploration_prob = min_exploration + (1.0 - min_exploration) * np.exp(-decay_rate * iterations)
+            # ---- Exploration decay (exponential) ----
+            # Smoother in practice
+            # exploration_prob = min_exploration + (1.0 - min_exploration) * np.exp(-decay_rate * iterations)
 
-        if np.random.rand() < exploration_prob:
-            # Explore (stochastic action)
+            # if np.random.rand() < exploration_prob:
+            #     # Explore (stochastic action)
+            #     print("Exploring the environment...")
+            #     deployment_runner.add_policy(agent.actor.sample_stochastic)
+            # else:
+            #     # Exploit (deterministic action)
+            #     print("Exploiting the environment...")
+            #     deployment_runner.add_policy(agent.actor.sample_a_logprob)
+
             deployment_runner.add_policy(agent.actor.sample_stochastic)
-        else:
-            # Exploit (deterministic action)
-            deployment_runner.add_policy(agent.actor.sample_a_logprob)
 
-        # ---- Run rollout ----
-        replay_buffer = deployment_runner.run(max_steps=args.max_episode_steps, logging=True)
-        episode_reward = replay_buffer.compute_reward(reward_scaling)
-        episode_rewards.append(episode_reward)
+            # ---- Run rollout ----
+            replay_buffer = deployment_runner.run(max_steps=args.max_episode_steps, logging=True)
+            episode_reward = replay_buffer.compute_reward(reward_scaling)
+            episode_rewards.append(episode_reward)
 
-        # ---- PPO update ----
-        actor_loss, critic_loss = agent.update(replay_buffer, total_steps)
-        actor_losses.append(actor_loss)
-        critic_losses.append(critic_loss)
+            # ---- PPO update ----
+            actor_loss, critic_loss = agent.update(replay_buffer, total_steps)
+            actor_losses.append(actor_loss)
+            critic_losses.append(critic_loss)
 
-        # ---- Logging ----
-        tensorboard_writer.add_scalar("Exploration/Probability", exploration_prob, (iterations+1))
-        tensorboard_writer.add_scalar("Reward/Episode", episode_reward, (iterations+1))
-        tensorboard_writer.add_scalar("Steps/Total", total_steps, (iterations+1))
-        tensorboard_writer.add_scalar("Loss/Actor", actor_loss, (iterations+1))
-        tensorboard_writer.add_scalar("Loss/Critic", critic_loss, (iterations+1))
+            # ---- Logging ----
+            # tensorboard_writer.add_scalar("Exploration/Probability", exploration_prob, (iterations+1))
+            tensorboard_writer.add_scalar("Reward/Episode", episode_reward, (iterations+1))
+            tensorboard_writer.add_scalar("Steps/Total", total_steps, (iterations+1))
+            tensorboard_writer.add_scalar("Loss/Actor", actor_loss, (iterations+1))
+            tensorboard_writer.add_scalar("Loss/Critic", critic_loss, (iterations+1))
 
-        replay_buffer._reset_data()
-        replay_buffer.count = 0
+            replay_buffer._reset_data()
+            replay_buffer.count = 0
 
-        # Save models
-        agent.save_pi_value('{}/pi_latest.pt'.format(file), '{}/value_latest.pt'.format(file))
-        np.savetxt(os.path.join(file, 'best_bppo.csv'), [agent.lr_a_now, agent.lr_c_now], fmt='%f', delimiter=',')
-        if total_steps % args.save_freq == 0:
-            agent.save_pi_value('{}/pi_{}.pt'.format(file, total_steps), '{}/value_{}.pt'.format(file, total_steps))
+            # Save models
+            agent.save_pi_value('{}/pi_latest.pt'.format(file), '{}/value_latest.pt'.format(file))
+            np.savetxt(os.path.join(file, 'best_bppo.csv'), [agent.lr_a_now, agent.lr_c_now], fmt='%f', delimiter=',')
+            if total_steps % args.save_freq == 0:
+                agent.save_pi_value('{}/pi_{}.pt'.format(file, total_steps), '{}/value_{}.pt'.format(file, total_steps))
 
-        iterations += 1
-        pbar.update(1)
+            iterations += 1
+            pbar.update(1)
 
-        # On-policy training rollouts (NOT a true evaluation)
-        print("evaluate_num:{} \t evaluate_reward:{}".format(iterations, np.mean(episode_rewards[int(-args.evaluate_freq):])))
-        print('actor_loss: {}, critic_loss: {}'.format(np.mean(actor_losses[int(-args.evaluate_freq):]), np.mean(critic_losses[int(-args.evaluate_freq):])))
+            # On-policy training rollouts (NOT a true evaluation)
+            print("evaluate_num:{} \t evaluate_reward:{}".format(iterations, np.mean(episode_rewards[int(-args.evaluate_freq):])))
+            print('actor_loss: {}, critic_loss: {}'.format(np.mean(actor_losses[int(-args.evaluate_freq):]), np.mean(critic_losses[int(-args.evaluate_freq):])))
 
-        tensorboard_writer.add_scalar("Mean Reward (over last 2 episodes)", np.mean(episode_rewards[int(-args.evaluate_freq):]), iterations)
-        tensorboard_writer.add_scalar("Mean Loss/Actor (over last 2 episodes)", np.mean(actor_losses[int(-args.evaluate_freq):]), iterations)
-        tensorboard_writer.add_scalar("Mean Loss/Critic (over last 2 episodes)", np.mean(critic_losses[int(-args.evaluate_freq):]), iterations)
+            tensorboard_writer.add_scalar("Mean Reward (over last 3 episodes)", np.mean(episode_rewards[int(-args.evaluate_freq):]), iterations)
+            tensorboard_writer.add_scalar("Mean Loss/Actor (over last 3 episodes)", np.mean(actor_losses[int(-args.evaluate_freq):]), iterations)
+            tensorboard_writer.add_scalar("Mean Loss/Critic (over last 3 episodes)", np.mean(critic_losses[int(-args.evaluate_freq):]), iterations)
 
-        if total_steps % args.evaluate_freq == 0:
-            evaluate_num += 1
+            # Run evaluation every N iterations
+            if iterations % args.evaluate_freq == 0:
+                eval_rewards = []
+                for k in range(args.num_eval_episodes):
+                    print(f"################ Evaluation Episode: {k+1} / {args.num_eval_episodes} ##################")
+                    # Always exploit (deterministic actions) during eval
+                    deployment_runner.add_policy(agent.actor.sample_a_logprob)
+                    replay_buffer_eval = deployment_runner.run(max_steps=args.max_episode_steps, logging=False)
+                    eval_rewards.append(replay_buffer_eval.compute_reward(reward_scaling))
+                
+                mean_eval_reward = np.mean(eval_rewards)
 
-        if (iterations + 1) % (2*args.evaluate_freq + 1) == 0:
-            eval_rewards = []
-            for k in range(args.num_eval_episodes):
-                print(f"################ Evaluation Episode: {k+1} / {args.num_eval_episodes} ##################")
-                # Always exploit (deterministic actions) during eval
-                deployment_runner.add_policy(agent.actor.sample_a_logprob)
-                replay_buffer_eval = deployment_runner.run(max_steps=args.max_episode_steps, logging=False)
-                eval_rewards.append(replay_buffer_eval.compute_reward(reward_scaling))
-            
-            mean_eval_reward = np.mean(eval_rewards)
-
-            # Log eval separately from training
-            tensorboard_writer.add_scalar("Reward/Eval", mean_eval_reward, (iterations+1))
-            print(f"[Eval] Iter {(iterations + 1)}, Mean Eval Reward = {mean_eval_reward:.2f}")
+                # Log eval separately from training
+                tensorboard_writer.add_scalar("Reward/Eval", mean_eval_reward, (iterations+1))
+                print(f"[Eval] Iter {(iterations + 1)}, Mean Eval Reward = {mean_eval_reward:.2f}")
 
 
     # with tqdm(total=grad_steps) as pbar:
