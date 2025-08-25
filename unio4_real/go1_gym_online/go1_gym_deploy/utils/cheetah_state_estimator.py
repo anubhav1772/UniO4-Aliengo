@@ -11,14 +11,12 @@ from go1_gym_online.go1_gym_deploy.lcm_types.state_estimator_lcmt import state_e
 from go1_gym_online.go1_gym_deploy.lcm_types.camera_message_lcmt import camera_message_lcmt
 from go1_gym_online.go1_gym_deploy.lcm_types.camera_message_rect_wide import camera_message_rect_wide
 
-
 def get_rpy_from_quaternion(q):
     w, x, y, z = q
     r = np.arctan2(2 * (w * x + y * z), 1 - 2 * (x ** 2 + y ** 2))
     p = np.arcsin(2 * (w * y - z * x))
     y = np.arctan2(2 * (w * z + x * y), 1 - 2 * (y ** 2 + z ** 2))
     return np.array([r, p, y])
-
 
 def get_rotation_matrix_from_rpy(rpy):
     """
@@ -46,7 +44,6 @@ def get_rotation_matrix_from_rpy(rpy):
 
     rot = np.dot(R_z, np.dot(R_y, R_x))
     return rot
-
 
 class StateEstimator:
     def __init__(self, lc, use_cameras=True):
@@ -103,7 +100,6 @@ class StateEstimator:
         self.cmd_offset = 0.0
         self.cmd_duration = 0.5
 
-
         self.init_time = time.time()
         self.received_first_legdata = False
 
@@ -153,7 +149,7 @@ class StateEstimator:
         cmd_yaw = -1.5 * self.right_stick[0] # check right_stick index in lcm_position.cpp
 
         # default values
-        cmd_y = 0.6 * self.left_stick[0]
+        cmd_y = -0.6 * self.left_stick[0]
         cmd_height = 0.
         cmd_footswing = 0.08
         cmd_stance_width = 0.33
@@ -171,7 +167,6 @@ class StateEstimator:
         return np.array([cmd_x, cmd_y, cmd_yaw, cmd_height, cmd_freq, self.cmd_phase, self.cmd_offset, self.cmd_bound,
                         self.cmd_duration, cmd_footswing, cmd_ori_pitch, cmd_ori_roll, cmd_stance_width,
                         cmd_stance_length, 0, 0, 0, 0, 0])
-
 
     # def get_command(self):
     #     MODES_LEFT = ["lat_vel", "body_height", "stance_width"]
@@ -424,7 +419,6 @@ class StateEstimator:
 
     def close(self):
         self.lc.unsubscribe(self.legdata_state_subscription)
-
 
 if __name__ == "__main__":
     import lcm
