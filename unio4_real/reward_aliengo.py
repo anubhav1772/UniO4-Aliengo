@@ -1,4 +1,3 @@
-
 import numpy as np
 import torch
 
@@ -37,14 +36,24 @@ class reward_aliengo(object):
         self.rpy = self.root_ang_states[:3]
         self.base_ang_vel = self.root_ang_states[3:6]
         self.base_ang_acc = self.root_ang_states[6:9]
-
         
+    # def calculate_reward(self,):
+    #     positive_reward = (0.5* self._reward_tracking_lin_vel()+1.0* self._reward_tracking_ang_vel())
+    #     negative_reward = (-0.02)*self._reward_lin_vel_z()+(-0.001)* self._reward_ang_vel_xy()+(-0.00005)*self._reward_torques()+(-2.5e-7)*self._reward_dof_acc()+(-0.01)*self._reward_action_rate()+(-1e-4)*self._reward_dof_vel()+(-0.1)*(self._reward_action_smoothness_1()+self._reward_action_smoothness_2())
+    #     reward = positive_reward * torch.exp(negative_reward*0.0002)
+    #     return reward.numpy()
+
     def calculate_reward(self,):
-        positive_reward = (0.5* self._reward_tracking_lin_vel()+1.0* self._reward_tracking_ang_vel())
+        positive_reward = (0.5 * self._reward_tracking_lin_vel() + 1.0 * self._reward_tracking_ang_vel())
         negative_reward = (-0.02)*self._reward_lin_vel_z()+(-0.001)* self._reward_ang_vel_xy()+(-0.00005)*self._reward_torques()+(-2.5e-7)*self._reward_dof_acc()+(-0.01)*self._reward_action_rate()+(-1e-4)*self._reward_dof_vel()+(-0.1)*(self._reward_action_smoothness_1()+self._reward_action_smoothness_2())
-        reward = positive_reward * torch.exp(negative_reward*0.02)
+        reward = positive_reward * torch.exp(0.02*negative_reward)
         return reward.numpy()
 
+    # def calculate_reward(self,):
+    #     positive_reward = (0.02* self._reward_tracking_lin_vel()+0.01* self._reward_tracking_ang_vel())
+    #     negative_reward = (-4e-4)*self._reward_lin_vel_z()+(-5e-9)*self._reward_dof_acc()+(-2e-3)*self._reward_action_rate()+(-2e-5)*self._reward_dof_vel()
+    #     reward = positive_reward * torch.exp(negative_reward*0.02)
+    #     return reward.numpy()
 
     # ------------ reward functions----------------
 
@@ -112,7 +121,6 @@ class reward_aliengo(object):
         diff = diff * (self.last_action != 0)  # ignore first step
         diff = diff * (self.last_last_action != 0)  # ignore second step
         return torch.sum(diff, dim=0)
-
 
     # def _reward_orientation_control(self):
     #     # Penalize non flat base orientation
