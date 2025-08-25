@@ -3,8 +3,9 @@ import os
 import numpy as np
 import time
 import torch
-from reward_aliengo_new import reward_aliengo
+from reward_aliengo import reward_aliengo
 from tqdm import tqdm
+
 # class HDF5_recorder:
 #     def __init__(self):
 #         self.folder_name = "dataset/"+time.strftime("%Y%m%d-%H%M%S")
@@ -57,7 +58,6 @@ class HDF5_recorder:
         self.obs_ = np.zeros((max_steps, state_dim))
         self.count = 0
 
-
     def _reset_data(self):
         self.count = 0
         self.timestamp = time.strftime("%Y%m%d-%H%M%S")
@@ -90,13 +90,13 @@ class HDF5_recorder:
                 print('A trajectory finished, initialize a new reward caculator')
                 reward_calculator = reward_aliengo(action_dim=12)
         rewards = self.r.flatten()
-
         # print('rewards:', rewards)
         for i, not_done in enumerate(1. - self.done.flatten()):
             if not not_done:
                 reward_scaling.reset()
             else:
-                rewards[i] = reward_scaling(rewards[i])
+                # rewards[i] = reward_scaling(rewards[i])
+                rewards[i] = rewards[i]
         self.r = rewards.reshape(-1, 1)
         print('finished the reward computation')
         return np.sum(self.r)/np.sum(self.done)
@@ -112,10 +112,8 @@ class HDF5_recorder:
         # for i in range(5):
         #     s[:, i*58 +9] = 0.03
         #     s_[:, i*58 +9] = 0.03
-
-
-
         return s, a, a_logprob, r, s_, dw, done
+
     def save_file(self):
         if self.count == 0:
             return
