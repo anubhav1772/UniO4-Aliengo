@@ -20,7 +20,7 @@ from datetime import datetime
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("Hyperparameters Setting for PPO")
-    parser.add_argument("--max_train_steps", type=int, default=int(2e5), help=" Maximum number of training steps")
+    parser.add_argument("--max_train_steps", type=int, default=int(1e6), help=" Maximum number of training steps")
     parser.add_argument("--evaluate_freq", type=int, default=3, help="Evaluate the policy every 'evaluate_freq' steps")
     parser.add_argument("--save_freq", type=int, default=20, help="Save frequency")
     parser.add_argument("--policy_dist", type=str, default="Gaussian", help="Beta or Gaussian")
@@ -103,7 +103,7 @@ if __name__ == '__main__':
 
     evaluate_num = 0  # Record the number of evaluations
     evaluate_rewards = []  # Record the rewards during the evaluating
-    total_steps = 0  # Record the total steps during the training
+    total_steps = (42 + 12)*2048  # Record the total steps during the training
     if args.use_reward_scaling:
         buffer_save_path = os.path.join('dataset_{}.pt'.format(args.date))
         dataset = torch.load(buffer_save_path)
@@ -138,19 +138,19 @@ if __name__ == '__main__':
     # log_dirs = f"runs/tensorboard/{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     # print(log_dirs)
     # os.makedirs(log_dirs, exist_ok=True)
-    log_dirs = "runs/tensorboard/20250821_170320"
+    log_dirs = "runs/tensorboard/20250825_180428"
     tensorboard_writer = SummaryWriter(log_dir=log_dirs)
 
     # Constant decay rate
     # decay_rate = 0.0005   # (larger = faster decay)
     # Adaptive decay rate
-    # epsilon = 1e-6
-    # max_iterations = args.max_train_steps // args.batch_size
-    # decay_rate = -math.log(epsilon) / max_iterations
-    # min_exploration = 0.1 
+    epsilon = 1e-6
+    max_iterations = args.max_train_steps // args.batch_size
+    decay_rate = -math.log(epsilon) / max_iterations
+    min_exploration = 0.1 
     
     with tqdm(total=grad_steps) as pbar:
-        iterations = 0
+        iterations = 12
         
         while total_steps < args.max_train_steps:
 
@@ -171,18 +171,18 @@ if __name__ == '__main__':
 
             # ---- Exploration decay (exponential) ----
             # Smoother in practice
-            # exploration_prob = min_exploration + (1.0 - min_exploration) * np.exp(-decay_rate * iterations)
+            exploration_prob = min_exploration + (1.0 - min_exploration) * np.exp(-decay_rate * iterations)
 
-            # if np.random.rand() < exploration_prob:
-            #     # Explore (stochastic action)
-            #     print("Exploring the environment...")
-            #     deployment_runner.add_policy(agent.actor.sample_stochastic)
-            # else:
-            #     # Exploit (deterministic action)
-            #     print("Exploiting the environment...")
-            #     deployment_runner.add_policy(agent.actor.sample_a_logprob)
+            if np.random.rand() < exploration_prob:
+                # Explore (stochastic action)
+                print("Exploring the environment...")
+                deployment_runner.add_policy(agent.actor.sample_stochastic)
+            else:
+                # Exploit (deterministic action)
+                print("Exploiting the environment...")
+                deployment_runner.add_policy(agent.actor.sample_a_logprob)
 
-            deployment_runner.add_policy(agent.actor.sample_stochastic)
+            # deployment_runner.add_policy(agent.actor.sample_stochastic)
 
             # ---- Run rollout ----
             replay_buffer = deployment_runner.run(max_steps=args.max_episode_steps, logging=True)
@@ -222,20 +222,20 @@ if __name__ == '__main__':
             tensorboard_writer.add_scalar("Mean Loss/Critic (over last 3 episodes)", np.mean(critic_losses[int(-args.evaluate_freq):]), iterations)
 
             # Run evaluation every N iterations
-            if iterations % args.evaluate_freq == 0:
-                eval_rewards = []
-                for k in range(args.num_eval_episodes):
-                    print(f"################ Evaluation Episode: {k+1} / {args.num_eval_episodes} ##################")
-                    # Always exploit (deterministic actions) during eval
-                    deployment_runner.add_policy(agent.actor.sample_a_logprob)
-                    replay_buffer_eval = deployment_runner.run(max_steps=args.max_episode_steps, logging=False)
-                    eval_rewards.append(replay_buffer_eval.compute_reward(reward_scaling))
+            # if iterations % args.evaluate_freq == 0:
+            #     eval_rewards = []
+            #     for k in range(args.num_eval_episodes):
+            #         print(f"################ Evaluation Episode: {k+1} / {args.num_eval_episodes} ##################")
+            #         # Always exploit (deterministic actions) during eval
+            #         deployment_runner.add_policy(agent.actor.sample_a_logprob)
+            #         replay_buffer_eval = deployment_runner.run(max_steps=args.max_episode_steps, logging=False)
+            #         eval_rewards.append(replay_buffer_eval.compute_reward(reward_scaling))
                 
-                mean_eval_reward = np.mean(eval_rewards)
+            #     mean_eval_reward = np.mean(eval_rewards)
 
-                # Log eval separately from training
-                tensorboard_writer.add_scalar("Reward/Eval", mean_eval_reward, (iterations+1))
-                print(f"[Eval] Iter {(iterations + 1)}, Mean Eval Reward = {mean_eval_reward:.2f}")
+            #     # Log eval separately from training
+            #     tensorboard_writer.add_scalar("Reward/Eval", mean_eval_reward, (iterations+1))
+            #     print(f"[Eval] Iter {(iterations + 1)}, Mean Eval Reward = {mean_eval_reward:.2f}")
 
 
     # with tqdm(total=grad_steps) as pbar:
