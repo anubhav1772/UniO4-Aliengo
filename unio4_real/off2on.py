@@ -103,7 +103,7 @@ if __name__ == '__main__':
 
     evaluate_num = 0  # Record the number of evaluations
     evaluate_rewards = []  # Record the rewards during the evaluating
-    total_steps = (42 + 12)*2048  # Record the total steps during the training
+    total_steps = (42 + 56)*2048  # Record the total steps during the training
     if args.use_reward_scaling:
         buffer_save_path = os.path.join('dataset_{}.pt'.format(args.date))
         dataset = torch.load(buffer_save_path)
@@ -132,7 +132,7 @@ if __name__ == '__main__':
     os.makedirs(file, exist_ok=True)
     actor_losses, critic_losses, episode_rewards = [], [], []
     grad_steps = int(args.max_train_steps / args.batch_size)
-    print(grad_steps)
+    # print(grad_steps)
 
     # Tensorboard log dir
     # log_dirs = f"runs/tensorboard/{datetime.now().strftime('%Y%m%d_%H%M%S')}"
@@ -150,7 +150,7 @@ if __name__ == '__main__':
     min_exploration = 0.1 
     
     with tqdm(total=grad_steps) as pbar:
-        iterations = 12
+        iterations = 56
         
         while total_steps < args.max_train_steps:
 
