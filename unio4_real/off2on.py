@@ -103,7 +103,7 @@ if __name__ == '__main__':
 
     evaluate_num = 0  # Record the number of evaluations
     evaluate_rewards = []  # Record the rewards during the evaluating
-    total_steps = (42 + 56)*2048  # Record the total steps during the training
+    total_steps = (42 + 76)*2048  # Record the total steps during the training
     if args.use_reward_scaling:
         buffer_save_path = os.path.join('dataset_{}.pt'.format(args.date))
         dataset = torch.load(buffer_save_path)
@@ -150,7 +150,7 @@ if __name__ == '__main__':
     min_exploration = 0.1 
     
     with tqdm(total=grad_steps) as pbar:
-        iterations = 56
+        iterations = 76
         
         while total_steps < args.max_train_steps:
 
