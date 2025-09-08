@@ -79,6 +79,7 @@ def load_and_run_policy(label, experiment_name, args, max_vel=1.0, max_yaw_vel=1
 
 # 1-----for online fine-tuned policy deployment-----
 def load_policy_online(logdir):
+    print("Loading ONLINE policy...")
     from bppo import BehaviorCloning
     bc = BehaviorCloning("cuda:0", 58 * 5, [512, 256, 128], 3, 12, 1e-4, 512)
     bc.load(logdir + '/online_finetuned/pi_latest.pt')
@@ -91,6 +92,7 @@ def load_policy_online(logdir):
 
 # 1-----for offline fine-tuned policy deployment-----
 def load_policy_offline(logdir):
+    print("Loading OFFLINE policy...")
     from bppo import BehaviorCloning
     bc = BehaviorCloning("cuda:0", 58 * 5, [512, 256, 128], 3, 12, 1e-4, 512)
     bc.load(logdir + '/offline_finetuned_1omega/pi_1.pt')
