@@ -8,5 +8,6 @@ struct pd_tau_targets_lcmt
     int64_t timestamp_us;
     int64_t id;
     int64_t robot_id;
+    boolean calibrated;
     double se_contactState[4];
 }
