@@ -36,6 +36,7 @@ export LCM_DEFAULT_URL=udpm://239.255.76.67:7667?ttl=1
 # ip link show
 sudo ifconfig eth0 multicast
 sudo route add -net 224.0.0.0 netmask 240.0.0.0 dev eth0
+cd unitree_legged_sdk/build
 ./camera_lcm_msgs
 ```
 
