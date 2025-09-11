@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 class Plotter:
     def __init__(self):
         # Folder containing all .hdf5 files
-        self.folder_path = "/home/anubhav1772/Github/UniO4-Aliengo/O2O_comparison_dataset/vx_1_vy_0_w_0/offline"
+        self.folder_path = "/home/anubhav1772/Github/UniO4-Aliengo/O2O_comparison_dataset/vx_2_vy_0_w_0"
 
         # Define feature slices (based on your table)
         self.feature_slices = {
@@ -93,25 +93,27 @@ class Plotter:
 
         return observations
 
-    def get_dataset_states(self):
-        """Load and concatenate all states from HDF5 files in the folder."""
+    def get_dataset_states(self, mode="offline"):
+        """Load and process states for a given mode (offline/online)."""
         all_states = []
-        for filename in os.listdir(self.folder_path):
+        for filename in os.listdir(os.path.join(self.folder_path, mode)):
             if filename.endswith(".hdf5"):
-                with h5py.File(os.path.join(self.folder_path, filename), "r") as f:
+                with h5py.File(os.path.join(self.folder_path, mode, filename), "r") as f:
                     if "states" in f:
-                        states = np.array(f["states"])               # 76 states (includes cam obs)
-                        states = self.process_data(states)           # process 18 cam obs
+                        states = np.array(f["states"])
+                        states = self.process_data(states)
                         all_states.append(states)
         if len(all_states) == 0:
-            raise ValueError("No valid HDF5 files with 'states' dataset found.")
+            raise ValueError(f"No valid HDF5 files with 'states' in mode '{mode}' found.")
         return np.array(all_states)
+
 
     def plot_features(self, save_folder=None, selected_feature=None):
         """
-        Plot a selected feature from multiple episodes, with each episode as a separate line.
+        Plot a selected feature and x_vel from multiple episodes.
+        Only plot timesteps up to 5 seconds.
         """
-        all_states = self.get_dataset_states()  # should return list of arrays [ep1, ep2, ...]
+        all_states = self.get_dataset_states()  # List of arrays: one per episode
 
         if selected_feature is None:
             raise ValueError("You must specify a selected_feature to plot.")
@@ -120,36 +122,171 @@ class Plotter:
             raise KeyError(f"Feature '{selected_feature}' not found in feature_slices.")
 
         feat_slice = self.feature_slices[selected_feature]
+        x_vel_slice = self.feature_slices["x_vel"]
 
-        # Create single large plot
+        # Create full plot
         plt.figure(figsize=(12, 6))
 
         for ep_idx, ep_states in enumerate(all_states):
             values = ep_states[:, feat_slice]
-            timesteps = np.arange(values.shape[0]) / 50.0  # 50Hz -> seconds
+            x_vel = ep_states[:, x_vel_slice]
+            timesteps = np.arange(values.shape[0]) / 50.0  # in seconds
 
+            # Only use values up to 5 seconds
+            mask = timesteps <= 5.0
+            timesteps = timesteps[mask]
+            values = values[mask]
+            x_vel = x_vel[mask]
+
+            # Plot selected feature
             if values.shape[1] == 1:
-                plt.plot(timesteps, values, label=f"Episode {ep_idx + 1}")
+                plt.plot(timesteps, values, label=f"{selected_feature} Ep {ep_idx + 1}")
             else:
                 for j in range(values.shape[1]):
                     plt.plot(timesteps, values[:, j], label=f"Ep{ep_idx + 1}_{selected_feature}_{j+1}", alpha=0.7)
 
-        plt.title(f"Forward velocity (along x) across episodes")
+            label = "Commanded x_vel" if ep_idx == 0 else None
+            plt.plot(timesteps, x_vel/2.0, linestyle='--', alpha=0.6, label=label)
+
+        plt.title("Forward Linear Velocity")
         plt.xlabel("Time (s)")
-        plt.ylabel("Value")
+        plt.ylabel("Velocity (m/s)")
         plt.legend()
         plt.grid(True)
         plt.tight_layout()
 
         if save_folder:
             os.makedirs(save_folder, exist_ok=True)
-            save_path = os.path.join(save_folder, f"{selected_feature}_multi_episode.png")
+            save_path = os.path.join(save_folder, f"{selected_feature}_xvel_multi_episode.png")
             plt.savefig(save_path)
             print(f"Saved plot to {save_path}")
         else:
             plt.show()
 
+    def plot(self, selected_feature=None):
+        all_states = self.get_dataset_states()  # List of episodes
+
+        if selected_feature is None:
+            raise ValueError("You must specify a selected_feature to plot.")
+
+        if selected_feature not in self.feature_slices:
+            raise KeyError(f"Feature '{selected_feature}' not found in feature_slices.")
+
+        feat_slice = self.feature_slices[selected_feature]
+        x_vel_slice = self.feature_slices["x_vel"]  # This is the commanded velocity
+
+        feature_all = []
+        x_vel_ref = None  # To store commanded x_vel from the first episode
+
+        for ep in all_states:
+            timesteps = np.arange(ep.shape[0]) / 50.0
+            mask = timesteps <= 5.0
+            timesteps = timesteps[mask]
+
+            feature = ep[mask, feat_slice]
+            if feature.shape[1] == 1:
+                feature = feature[:, 0]
+            feature_all.append(feature)
+
+            # Save commanded x_vel once (same across episodes)
+            if x_vel_ref is None:
+                x_vel = ep[mask, x_vel_slice]
+                if x_vel.shape[1] == 1:
+                    x_vel = x_vel[:, 0]
+                x_vel_ref = x_vel
+
+        # Match lengths
+        min_len = min(len(f) for f in feature_all)
+        feature_all = [f[:min_len] for f in feature_all]
+        feature_array = np.stack(feature_all, axis=0)
+        timesteps = np.arange(min_len) / 50.0
+        x_vel_ref = x_vel_ref[:min_len]
+
+        # Mean and std
+        mean_feat = feature_array.mean(axis=0)
+        std_feat = feature_array.std(axis=0)
+
+        # Plot
+        plt.figure(figsize=(10, 5))
+        plt.plot(timesteps, mean_feat, label=f"Mean {selected_feature}", color="blue")
+        plt.fill_between(timesteps, mean_feat - std_feat, mean_feat + std_feat,
+                         color="blue", alpha=0.3, label="Std Dev")
+
+        # Add commanded x_vel as dashed black line
+        plt.plot(timesteps, x_vel_ref/2.0, linestyle="--", color="black", label="Commanded x_vel")
+
+        plt.title("Forward Linear Velocity")
+        plt.xlabel("Time (s)")
+        plt.ylabel("Velocity (m/s)")
+        plt.legend()
+        plt.grid(True)
+        plt.tight_layout()
+        plt.show()
+
+    def plot_O2O(self, selected_feature=None):
+        if selected_feature is None:
+            raise ValueError("You must specify a selected_feature to plot.")
+        if selected_feature not in self.feature_slices:
+            raise KeyError(f"Feature '{selected_feature}' not found in feature_slices.")
+
+        feat_slice = self.feature_slices[selected_feature]
+        x_vel_slice = self.feature_slices["x_vel"]
+
+        modes = {
+            "offline": {"color": "blue"},
+            "online": {"color": "green"},
+        }
+
+        plt.figure(figsize=(10, 5))
+        x_vel_ref = None  # To store commanded x_vel once
+
+        for mode_name, style in modes.items():
+            all_states = self.get_dataset_states(mode=mode_name)
+            feature_all = []
+
+            for ep in all_states:
+                timesteps = np.arange(ep.shape[0]) / 50.0
+                mask = timesteps <= 5.0
+                timesteps = timesteps[mask]
+
+                feature = ep[mask, feat_slice]
+                if feature.shape[1] == 1:
+                    feature = feature[:, 0]
+                feature_all.append(feature)
+
+                # Save commanded x_vel from first episode
+                if x_vel_ref is None:
+                    x_vel = ep[mask, x_vel_slice]
+                    if x_vel.shape[1] == 1:
+                        x_vel = x_vel[:, 0]
+                    x_vel_ref = x_vel[:len(timesteps)]
+
+            # Trim and stack
+            min_len = min(len(f) for f in feature_all)
+            feature_all = [f[:min_len] for f in feature_all]
+            feature_array = np.stack(feature_all, axis=0)
+            timesteps = np.arange(min_len) / 50.0
+
+            mean_feat = feature_array.mean(axis=0)
+            std_feat = feature_array.std(axis=0)
+
+            # plt.plot(timesteps, mean_feat, label=f"{mode_name} mean {selected_feature}", color=style["color"])
+            plt.plot(timesteps, mean_feat, label=f"{mode_name} mean x vel", color=style["color"])
+            plt.fill_between(timesteps, mean_feat - std_feat, mean_feat + std_feat,
+                             color=style["color"], alpha=0.3, label=f"{mode_name} std band")
+
+        # Commanded x_vel (same for both)
+        plt.plot(timesteps, x_vel_ref / 2.0, linestyle="--", color="black", label="Commanded x vel")
+
+        plt.title(f"Forward Velocity Tracking: Offline vs Online ({np.mean(x_vel_ref / 2.0)} m/s)")
+        plt.xlabel("Time (s)")
+        plt.ylabel("Velocity (m/s)")
+        plt.legend()
+        plt.grid(True)
+        plt.tight_layout()
+        plt.show()
+
 if __name__ == '__main__':
     plotter = Plotter()
     # plotter.plot_features(save_folder="mbrl_dynamics_net/plots")
-    plotter.plot_features(selected_feature="cam_velocity_z") 
+    plotter.plot_O2O(selected_feature="cam_velocity_z") 
