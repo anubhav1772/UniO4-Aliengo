@@ -286,7 +286,84 @@ class Plotter:
         plt.tight_layout()
         plt.show()
 
+    def plot_error_O2O(self, selected_feature=None):
+        if selected_feature is None:
+            raise ValueError("You must specify a selected_feature to plot.")
+        if selected_feature not in self.feature_slices:
+            raise KeyError(f"Feature '{selected_feature}' not found in feature_slices.")
+
+        feat_slice = self.feature_slices[selected_feature]
+        x_vel_slice = self.feature_slices["x_vel"]
+
+        modes = {
+            "offline": {"color": "blue"},
+            "online": {"color": "green"},
+        }
+
+        plt.figure(figsize=(10, 5))
+        x_vel_ref = None  # Commanded reference velocity
+
+        for mode_name, style in modes.items():
+            all_states = self.get_dataset_states(mode=mode_name)
+            errors_all = []
+
+            for ep in all_states:
+                timesteps = np.arange(ep.shape[0]) / 50.0
+                mask = timesteps <= 5.0
+                timesteps = timesteps[mask]
+
+                # Current feature velocity
+                feature = ep[mask, feat_slice]
+                if feature.shape[1] == 1:
+                    feature = feature[:, 0]
+
+                # Commanded reference velocity
+                x_vel = ep[mask, x_vel_slice]
+                if x_vel.shape[1] == 1:
+                    x_vel = x_vel[:, 0]/2.0
+
+                if x_vel_ref is None:
+                    x_vel_ref = x_vel[:len(timesteps)]
+
+                # Compute tracking error
+                error = abs(feature - x_vel[:len(feature)])
+                errors_all.append(error)
+
+            # Align lengths
+            min_len = min(len(e) for e in errors_all)
+            errors_all = [e[:min_len] for e in errors_all]
+            errors_array = np.stack(errors_all, axis=0)
+            timesteps = np.arange(min_len) / 50.0
+
+            # Mean & std error
+            mean_err = errors_array.mean(axis=0)
+            std_err = errors_array.std(axis=0)
+
+            plt.plot(
+                timesteps,
+                mean_err,
+                label=f"{mode_name} mean error",
+                color=style["color"]
+            )
+            plt.fill_between(
+                timesteps,
+                mean_err - std_err,
+                mean_err + std_err,
+                color=style["color"],
+                alpha=0.3,
+                label=f"{mode_name} std band"
+            )
+
+        plt.title(f"Velocity Tracking Error: Offline vs Online ({np.mean(x_vel_ref)} m/s)")
+        plt.xlabel("Time (s)")
+        plt.ylabel("Error (m/s)")
+        plt.legend()
+        plt.grid(True)
+        plt.tight_layout()
+        plt.show()
+
 if __name__ == '__main__':
     plotter = Plotter()
     # plotter.plot_features(save_folder="mbrl_dynamics_net/plots")
-    plotter.plot_O2O(selected_feature="cam_velocity_z") 
+    # plotter.plot_O2O(selected_feature="cam_velocity_z") 
+    plotter.plot_error_O2O(selected_feature="cam_velocity_z") 
