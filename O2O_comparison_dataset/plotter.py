@@ -415,6 +415,8 @@ if __name__ == '__main__':
     # plotter.plot_features(save_folder="mbrl_dynamics_net/plots")
     # plotter.plot_O2O(selected_feature="cam_velocity_z") 
     # plotter.plot_error_O2O(selected_feature="cam_velocity_z") 
+    # X (Forward) velocity
+    # plotter.plot(selected_feature="cam_velocity_z")
     # Y velocity
     plotter.plot(selected_feature="cam_velocity_x")
     # Angular velocity (about Z)
