@@ -6,7 +6,8 @@ import matplotlib.pyplot as plt
 class Plotter:
     def __init__(self):
         # Folder containing all .hdf5 files
-        self.folder_path = "/home/anubhav1772/Github/UniO4-Aliengo/O2O_comparison_dataset/vx_2_vy_0_w_0"
+        # self.folder_path = "/home/anubhav1772/Github/UniO4-Aliengo/O2O_comparison_dataset/vx_2_vy_0_w_0"
+        self.folder_path = "/home/anubhav1772/Github/UniO4-Aliengo/data_sim_policy/"
 
         # Define feature slices (based on your table)
         self.feature_slices = {
@@ -50,6 +51,50 @@ class Plotter:
             "cam_angular_acceleration_y": slice(75, 76),
         }
 
+    # def process_data(self, observations):
+    #     # print(f"Processing...")
+
+    #     x0 = observations[0, 58]
+    #     y0 = observations[0, 59]
+    #     z0 = observations[0, 60]
+    #     r0 = observations[0, 67]
+    #     p0 = observations[0, 68]
+    #     theta0 = observations[0, 69]
+
+    #     N = len(observations)
+    #     L = 0.16
+
+    #     observations[:, 58] -= x0 * np.ones(N)
+    #     observations[:, 59] -= y0 * np.ones(N)
+    #     observations[:, 60] -= z0 * np.ones(N)
+    #     observations[:, 67] -= r0 * np.ones(N)
+    #     observations[:, 68] -= p0 * np.ones(N)
+    #     observations[:, 69] -= theta0 * np.ones(N)
+
+    #     for i in range(len(observations)):
+    #         C = np.cos(observations[i, 69] + theta0)
+    #         S = np.sin(observations[i, 69] + theta0)
+
+    #         observations[i, 58] = observations[i, 58] - L * np.cos(theta0) + L
+    #         observations[i, 59] = observations[i, 59] - L * np.sin(theta0)
+
+    #         observations[i, 61] += L * S
+    #         observations[i, 62] -= L * C 
+
+    #         R = np.array([[C, S, 0],
+    #                       [-S, C, 0],
+    #                       [0, 0, 1]])
+            
+    #         v_ref = np.array([[observations[i, 61]],
+    #                           [observations[i, 62]],
+    #                           [0]])
+    #         # Rotate + bias
+    #         v = np.dot(R, v_ref) + np.array([[0], [L], [0]]) 
+    #         observations[i, 61] = v[0]
+    #         observations[i, 62] = v[1]
+
+    #     return observations
+
     def process_data(self, observations):
         # print(f"Processing...")
 
@@ -77,8 +122,8 @@ class Plotter:
             observations[i, 58] = observations[i, 58] - L * np.cos(theta0) + L
             observations[i, 59] = observations[i, 59] - L * np.sin(theta0)
 
-            observations[i, 61] += L * S
-            observations[i, 62] -= L * C
+            observations[i, 61] += L * S * observations[i, 72]
+            observations[i, 62] -= L * C * observations[i, 72]
 
             R = np.array([[C, S, 0],
                           [-S, C, 0],
@@ -87,7 +132,8 @@ class Plotter:
             v_ref = np.array([[observations[i, 61]],
                               [observations[i, 62]],
                               [0]])
-            v = np.dot(R, v_ref)
+            # Rotate + bias
+            v = np.dot(R, v_ref) + np.array([[0], [L * observations[i, 72]], [0]]) 
             observations[i, 61] = v[0]
             observations[i, 62] = v[1]
 
@@ -164,7 +210,7 @@ class Plotter:
             plt.show()
 
     def plot(self, selected_feature=None):
-        all_states = self.get_dataset_states()  # List of episodes
+        all_states = self.get_dataset_states("vy=0.6")  # List of episodes
 
         if selected_feature is None:
             raise ValueError("You must specify a selected_feature to plot.")
@@ -173,7 +219,7 @@ class Plotter:
             raise KeyError(f"Feature '{selected_feature}' not found in feature_slices.")
 
         feat_slice = self.feature_slices[selected_feature]
-        x_vel_slice = self.feature_slices["x_vel"]  # This is the commanded velocity
+        x_vel_slice = self.feature_slices["y_vel"]  # This is the commanded velocity
 
         feature_all = []
         x_vel_ref = None  # To store commanded x_vel from the first episode
@@ -208,16 +254,18 @@ class Plotter:
 
         # Plot
         plt.figure(figsize=(10, 5))
-        plt.plot(timesteps, mean_feat, label=f"Mean {selected_feature}", color="blue")
+        # plt.plot(timesteps, mean_feat, label=f"Mean {selected_feature}", color="blue")
+        plt.plot(timesteps, mean_feat, label="Mean Y Vel", color="blue")
         plt.fill_between(timesteps, mean_feat - std_feat, mean_feat + std_feat,
-                         color="blue", alpha=0.3, label="Std Dev")
+                         color="blue", alpha=0.3, label="Std Dev Band")
 
         # Add commanded x_vel as dashed black line
-        plt.plot(timesteps, x_vel_ref/2.0, linestyle="--", color="black", label="Commanded x_vel")
+        # yaw rate is scaled by 0.25, while linear vels are scaled by 2
+        plt.plot(timesteps, x_vel_ref/2, linestyle="--", color="black", label="Target Y Vel")
 
-        plt.title("Forward Linear Velocity")
+        plt.title("Sideways Velocity (0.6 m/s)")
         plt.xlabel("Time (s)")
-        plt.ylabel("Velocity (m/s)")
+        plt.ylabel("Linear Velocity (m/s)")
         plt.legend()
         plt.grid(True)
         plt.tight_layout()
@@ -366,4 +414,8 @@ if __name__ == '__main__':
     plotter = Plotter()
     # plotter.plot_features(save_folder="mbrl_dynamics_net/plots")
     # plotter.plot_O2O(selected_feature="cam_velocity_z") 
-    plotter.plot_error_O2O(selected_feature="cam_velocity_z") 
+    # plotter.plot_error_O2O(selected_feature="cam_velocity_z") 
+    # Y velocity
+    plotter.plot(selected_feature="cam_velocity_x")
+    # Angular velocity (about Z)
+    # plotter.plot(selected_feature="cam_angular_velocity_y")
