@@ -6,10 +6,10 @@ import matplotlib.pyplot as plt
 class Plotter:
     def __init__(self):
         # Folder containing all .hdf5 files
-        # self.folder_path = "/home/anubhav1772/Github/UniO4-Aliengo/O2O_comparison_dataset/vx_2_vy_0_w_0"
-        self.folder_path = "/home/anubhav1772/Github/UniO4-Aliengo/data_sim_policy/"
+        self.folder_path = "/home/anubhav1772/Github/UniO4-Aliengo/O2O_comparison_dataset/vx_0_vy_0.6_w_0"
+        # self.folder_path = "/home/anubhav1772/Github/UniO4-Aliengo/data_sim_policy/"
 
-        # Define feature slices (based on your table)
+        # Define feature slices
         self.feature_slices = {
             "gravity_vector": slice(0, 3),
             "x_vel": slice(3, 4),
@@ -168,7 +168,7 @@ class Plotter:
             raise KeyError(f"Feature '{selected_feature}' not found in feature_slices.")
 
         feat_slice = self.feature_slices[selected_feature]
-        x_vel_slice = self.feature_slices["x_vel"]
+        x_vel_slice = self.feature_slices["yaw_vel"]
 
         # Create full plot
         plt.figure(figsize=(12, 6))
@@ -192,7 +192,7 @@ class Plotter:
                     plt.plot(timesteps, values[:, j], label=f"Ep{ep_idx + 1}_{selected_feature}_{j+1}", alpha=0.7)
 
             label = "Commanded x_vel" if ep_idx == 0 else None
-            plt.plot(timesteps, x_vel/2.0, linestyle='--', alpha=0.6, label=label)
+            plt.plot(timesteps, x_vel*4, linestyle='--', alpha=0.6, label=label)
 
         plt.title("Forward Linear Velocity")
         plt.xlabel("Time (s)")
@@ -210,7 +210,7 @@ class Plotter:
             plt.show()
 
     def plot(self, selected_feature=None):
-        all_states = self.get_dataset_states("vy=0.6")  # List of episodes
+        all_states = self.get_dataset_states("online")  # List of episodes
 
         if selected_feature is None:
             raise ValueError("You must specify a selected_feature to plot.")
@@ -278,10 +278,11 @@ class Plotter:
             raise KeyError(f"Feature '{selected_feature}' not found in feature_slices.")
 
         feat_slice = self.feature_slices[selected_feature]
-        x_vel_slice = self.feature_slices["x_vel"]
+        x_vel_slice = self.feature_slices["y_vel"]
 
         modes = {
-            "offline": {"color": "blue"},
+            #"sim": {"color": "red"},
+            "offline_0.2w_0.6vy": {"color": "blue"},
             "online": {"color": "green"},
         }
 
@@ -303,11 +304,25 @@ class Plotter:
                 feature_all.append(feature)
 
                 # Save commanded x_vel from first episode
-                if x_vel_ref is None:
-                    x_vel = ep[mask, x_vel_slice]
-                    if x_vel.shape[1] == 1:
-                        x_vel = x_vel[:, 0]
-                    x_vel_ref = x_vel[:len(timesteps)]
+                # if mode_name in {"offline", "online"}:
+                #     if x_vel_ref is None:
+                #         x_vel = ep[mask, x_vel_slice]
+                #         if x_vel.shape[1] == 1:
+                #             x_vel = x_vel[:, 0]
+                #         x_vel_ref = x_vel[:len(timesteps)-1]
+                # else:
+                #     if x_vel_ref is None:
+                #         x_vel = ep[mask, x_vel_slice]
+                #         if x_vel.shape[1] == 1:
+                #             x_vel = x_vel[:, 0]
+                #         x_vel_ref = x_vel[:len(timesteps)]
+
+            if x_vel_ref is None:
+                x_vel = ep[mask, x_vel_slice]
+                if x_vel.shape[1] == 1:
+                    x_vel = x_vel[:, 0]
+                x_vel_ref = x_vel[:len(timesteps)]
+
 
             # Trim and stack
             min_len = min(len(f) for f in feature_all)
@@ -318,15 +333,17 @@ class Plotter:
             mean_feat = feature_array.mean(axis=0)
             std_feat = feature_array.std(axis=0)
 
+            # print(len(mean_feat))
+
             # plt.plot(timesteps, mean_feat, label=f"{mode_name} mean {selected_feature}", color=style["color"])
-            plt.plot(timesteps, mean_feat, label=f"{mode_name} mean x vel", color=style["color"])
-            plt.fill_between(timesteps, mean_feat - std_feat, mean_feat + std_feat,
+            plt.plot(timesteps[0:251], mean_feat[0:251], label=f"{mode_name} mean yaw vel", color=style["color"])
+            plt.fill_between(timesteps[0:251], mean_feat[0:251] - std_feat, mean_feat[0:251] + std_feat,
                              color=style["color"], alpha=0.3, label=f"{mode_name} std band")
 
         # Commanded x_vel (same for both)
-        plt.plot(timesteps, x_vel_ref / 2.0, linestyle="--", color="black", label="Commanded x vel")
+        plt.plot(timesteps[:250], x_vel_ref[:250]/2, linestyle="--", color="black", label="Commanded yaw vel")
 
-        plt.title(f"Forward Velocity Tracking: Offline vs Online ({np.mean(x_vel_ref / 2.0)} m/s)")
+        plt.title(f"Y Velocity Tracking: Sim vs Offline vs Online ({np.mean(x_vel_ref / 2.0)} m/s)")
         plt.xlabel("Time (s)")
         plt.ylabel("Velocity (m/s)")
         plt.legend()
@@ -341,7 +358,7 @@ class Plotter:
             raise KeyError(f"Feature '{selected_feature}' not found in feature_slices.")
 
         feat_slice = self.feature_slices[selected_feature]
-        x_vel_slice = self.feature_slices["x_vel"]
+        x_vel_slice = self.feature_slices["y_vel"]
 
         modes = {
             "offline": {"color": "blue"},
@@ -402,7 +419,7 @@ class Plotter:
                 label=f"{mode_name} std band"
             )
 
-        plt.title(f"Velocity Tracking Error: Offline vs Online ({np.mean(x_vel_ref)} m/s)")
+        plt.title(f"Y Velocity Tracking Error: Offline vs Online ({np.mean(x_vel_ref)} m/s)")
         plt.xlabel("Time (s)")
         plt.ylabel("Error (m/s)")
         plt.legend()
@@ -414,10 +431,12 @@ if __name__ == '__main__':
     plotter = Plotter()
     # plotter.plot_features(save_folder="mbrl_dynamics_net/plots")
     # plotter.plot_O2O(selected_feature="cam_velocity_z") 
+    plotter.plot_O2O(selected_feature="cam_velocity_x")
+    # plotter.plot_O2O(selected_feature="cam_angular_velocity_y")
     # plotter.plot_error_O2O(selected_feature="cam_velocity_z") 
     # X (Forward) velocity
     # plotter.plot(selected_feature="cam_velocity_z")
     # Y velocity
-    plotter.plot(selected_feature="cam_velocity_x")
+    # plotter.plot(selected_feature="cam_velocity_x")
     # Angular velocity (about Z)
     # plotter.plot(selected_feature="cam_angular_velocity_y")
